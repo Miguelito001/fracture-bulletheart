@@ -26,7 +26,7 @@ const PALETTE={
 const MODELS=['banner','barrel','chair','character-human','character-orc','chest','coin',
  'column','dirt','floor','floor-detail','gate','key','pot','potion','rocks',
  'shield-rectangle','stairs','stones','table','trap','wall','wall-half',
- 'wall-narrow','wall-opening','weapon-sword','wood-structure','wood-support',
+ 'wall-narrow','wall-opening','weapon-sword','blaster-g','wood-structure','wood-support',
  'grave-altar-stone','grave-candle-multiple','grave-character-skeleton','grave-character-ghost',
  'grave-coffin','grave-column-large','grave-crypt-door','grave-fire-basket',
  'grave-gravestone-round','grave-lightpost-single','grave-urn-round',
