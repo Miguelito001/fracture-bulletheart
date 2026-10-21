@@ -141,6 +141,21 @@ try:
   page.screenshot(path=str(ROOT/'artpass-dungeon-smoke.png'))
   page.evaluate("() => {const r=rooms.find(r=>r.kind==='battle');if(r){px=r.cx;py=r.cy;visitRoom(r);}}")
   page.wait_for_timeout(450)
+  # A real canvas mouse click must damage an enemy through the equipped sword,
+  # not merely render the combat scene.
+  target=page.evaluate("""() => {
+    const m=mobs.find(v=>!v.dead&&v.room===current?.id);
+    if(!m)return null;
+    m.x=px+69;m.y=py;m.stun=2;m.cd=9;
+    attackCD=0;
+    const p=isoPoint(px+96,py);
+    return {id:m.id,hp:m.hp,kills:run.kills,x:p.x,y:p.y};
+  }""")
+  assert target,'Battle did not produce a target enemy'
+  page.mouse.click(target['x'],target['y'])
+  damage=page.evaluate("(id)=>({hp:mobs.find(v=>v.id===id)?.hp??0,kills:run.kills})",target['id'])
+  assert damage['hp']<target['hp'] or damage['kills']>target['kills'],('Canvas attack failed',target,damage)
+  print('REAL MOUSE MELEE COMBAT OK:',target,damage,flush=True)
   gate=page.evaluate("""() => {
     const battle=rooms.find(r=>r.kind==='battle'&&r.active);
     if(!battle)return {exists:false};
