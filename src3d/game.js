@@ -357,7 +357,21 @@ class Fracture {
    if(dist<range&&a<angle&&this.lineOfSight(p.x,p.z,e.x,e.z)&&dist<distBest){nearest=e;distBest=dist;}
    if(!gun&&dist<range&&a<angle)this.hitEnemy(e,19*(this.progress.unlocks.includes('forge')?1.12:1));
   }
-  if(gun&&nearest)this.hitEnemy(nearest,15);
+  if(gun){
+   // Aim at the visible mesh under the cursor. Orthographic perspective
+   // makes ground-plane-only angle checks miss opponents whose body was clicked.
+   let picked=null,best=.17;
+   for(const e of this.enemyUnits){
+    if(e.hp<=0||!this.lineOfSight(p.x,p.z,e.x,e.z))continue;
+    const body=new THREE.Vector3(e.x,1.10,e.z).project(this.camera);
+    const d=Math.hypot(body.x-this.pointer.x,body.y-this.pointer.y);
+    if(d<best&&Math.hypot(e.x-p.x,e.z-p.z)<=range){best=d;picked=e;}
+   }
+   nearest=picked||nearest;
+   this.lastGunShot={pointer:[this.pointer.x,this.pointer.y],target:nearest?.kind||null,
+      screenLock:!!picked,range:nearest?Math.hypot(nearest.x-p.x,nearest.z-p.z):null};
+   if(nearest)this.hitEnemy(nearest,15);
+  }
   if(gun){
     // A short-lived projectile tracer follows the real ray aim/hit direction,
     // distinct from the sword's wide impact ring.
