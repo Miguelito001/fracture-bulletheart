@@ -371,5 +371,5 @@ isoCharacter=function(id,x,y,w,h,alpha=1){
   }
 };
 // Read-only inspection marker for browser automation.
-window.__fractureCitadel={version:"1",tiles:55,license:"Kenney CC0",architecture:true};
+window.__fractureCitadel={version:"1",tiles:55,license:"Kenney CC0",architecture:true,ready:()=>BLOCK_IDS.every(id=>blockImgs[id].complete&&blockImgs[id].naturalWidth>0)};
 })();
