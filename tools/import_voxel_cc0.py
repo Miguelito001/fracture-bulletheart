@@ -13,7 +13,7 @@ ROOT=Path(__file__).resolve().parent.parent
 DEST=ROOT/"assets"/"voxel"
 PIN="0d66f7aebf6faf651ab680c9b83b2d8a40e666a1"
 BASE="https://raw.githubusercontent.com/GeorgeQLe/assets-2d-isometric/"+PIN+"/assets/kenney/isometric-blocks/PNG/Voxel%20tiles/"
-IDS=["09","11","12","13","14","15","17","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40"]
+IDS=[f'{i:02}' for i in range(1,56)]
 DEST.mkdir(parents=True, exist_ok=True)
 checks=[]
 for id in IDS:
@@ -36,7 +36,7 @@ for id in IDS:
 "License: Creative Commons Zero 1.0 Universal (CC0-1.0)\n"
 "Mirror: https://github.com/GeorgeQLe/assets-2d-isometric\n"
 "Mirror commit: "+PIN+"\n"
-"Images: 29 individually extracted Voxel tiles sprites\n"
+"Images: 55 individually extracted Voxel tiles sprites\n"
 "All assets bundled in the repository, no runtime network downloads.\n"
 "Full official notice: https://creativecommons.org/publicdomain/zero/1.0/\n",
 encoding="utf-8")
