@@ -27,8 +27,8 @@ jobs:
         run: |
           npm install
           npm run check
-          npm test
           npm run build
+          npm test
       - name: Publish complete repository
         run: |
           rm -f bootstrap.mjs bundle.part*.txt
