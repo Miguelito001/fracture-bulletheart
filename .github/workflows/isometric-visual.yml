@@ -1,4 +1,4 @@
-name: FRACTURE Cartoon V3 Asset Import and Browser QA
+name: FRACTURE Citadel Architecture and Browser QA
 on:
   push:
     branches: [feature/isov2-cartoon]
