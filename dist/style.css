@@ -2,3 +2,9 @@
 
 /* Lucide icons (ISC): open-source weapon silhouettes, see THIRD_PARTY_LICENSES.md */
 .weapon-icon{width:26px;height:26px;flex-shrink:0;filter:sepia(1) saturate(.55) brightness(1.8)} .weapon{gap:7px}.weapon strong{font-size:22px}.weapon div{min-width:0}.weapon span{white-space:normal;line-height:1.15}
+
+/* Câmara Âncora — status leve e interfaces de espólio */
+#hub-status{position:absolute;top:19px;left:50%;transform:translateX(-50%);z-index:3;pointer-events:none;display:flex;align-items:center;flex-direction:column;gap:5px;text-shadow:0 2px 9px #090918;text-align:center;letter-spacing:2px}
+.hub-mark{font:700 18px Georgia,serif;color:#f4d99f}.hub-mark small{font:10px sans-serif;color:#9dd4af;letter-spacing:2px}.hub-stats{display:flex;gap:15px;color:#c5c0d4;font-size:10px;letter-spacing:1px}.hub-stats b{color:#f9dfa5;font-size:12px}.hub-stats span{background:#101628a8;padding:6px 10px;border:1px solid #66718744}
+.cargo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0}.cargo-entry{border:1px solid #5e7982;background:linear-gradient(140deg,#202c37,#101c2d);padding:14px;display:flex;flex-direction:column;gap:5px;border-radius:4px}.cargo-entry.rare{border-color:#ae88ec;background:linear-gradient(140deg,#302941,#15182c)}.cargo-entry strong{font-size:14px}.cargo-entry span{font:700 23px Georgia;color:#eccb87}.cargo-entry small{color:#b5a6ce;font-size:10px;letter-spacing:2px}.loot-row{display:flex;flex-wrap:wrap;gap:9px}.loot-pill{color:#f0d29c;background:#263247;border:1px solid #a48d76;padding:12px 14px}
+@media(max-width:620px){.hub-stats{gap:3px;font-size:8px}.hub-stats span{padding:3px 4px}.cargo-grid{grid-template-columns:repeat(2,1fr)}}
