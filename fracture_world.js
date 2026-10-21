@@ -339,12 +339,14 @@ let heroX=NaN,heroY=NaN,heroStride=0;
 isoCharacter=function(id,x,y,w,h,alpha=1){
   const hero=(id==="wanderer"||id==="arcanist"||id==="bulwark");
   if(hero){
-    const delta=Math.hypot(x-heroX,y-heroY);
+    const vx=x-heroX,vy=y-heroY,delta=Math.hypot(vx,vy);
     const moving=Number.isFinite(delta)&&delta>0.5;
     heroStride=moving?Math.min(1,heroStride+.24):Math.max(0,heroStride-.2);
+    if(moving)heroDirection=((Math.round(Math.atan2(vy,vx)/(PI/4))+8)%8);
     heroX=x;heroY=y;
-    const q=pos(x,y),hop=heroStride*Math.abs(Math.sin(globalTime*13))*4;
-    originalCharacter(id,x,y-hop,w,h,alpha);
+    window.__fractureMotion={stride:heroStride,phase:globalTime*13};
+    const q=pos(x,y),hop=heroStride*Math.abs(Math.sin(globalTime*13))*3.5;
+    g.save();g.translate(0,-hop);originalCharacter(id,x,y,w,h,alpha);g.restore();
     if(heroStride>.08){
       const shift=Math.sin(globalTime*13);
       for(const side of [-1,1]){
