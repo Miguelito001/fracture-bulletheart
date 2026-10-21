@@ -370,6 +370,112 @@ isoCharacter=function(id,x,y,w,h,alpha=1){
     }
   }
 };
+
+// Scene props now have their own silhouettes. These replace the old fallback
+// that used identical white CC0 cubes for every collision object.
+kenney=function(id,x,y,scale=1,opacity=1){
+  if(cull(x,y,160))return true;
+  const p=pos(x,y),t=theme(),r=Math.max(.3,scale),key=h32(Math.round(x/T),Math.round(y/T));
+  g.save();g.globalAlpha=opacity;g.lineJoin="round";
+  disc(p.x,p.y+2,30*r,11*r,"#09131e93");
+  if(/stoneColumn|stoneWallColumn|stoneWall|stoneStep|stairs/i.test(id)){
+    const h=(id.includes("Wall")?87:110)*r;
+    stoneColumnAt(p.x,p.y,h,t,.9*r);
+    if(key%4===0){
+      disc(p.x,p.y-h+10*r,7*r,4*r,t.metal);
+      stroke([{x:p.x-6*r,y:p.y-h+32*r},{x:p.x+6*r,y:p.y-h+35*r}],t.mortar,2);
+    }
+  }else if(/barrel/i.test(id)){
+    const w=25*r,h=45*r;
+    rect(p.x-w/2,p.y-h,w,h-5*r,"#936744",6*r);
+    poly([{x:p.x-w/2,y:p.y-h+7*r},{x:p.x+w/2,y:p.y-h+7*r},
+      {x:p.x+w/2-3*r,y:p.y-6*r},{x:p.x-w/2+3*r,y:p.y-6*r}],"#9d744f","#493b37",2);
+    disc(p.x,p.y-h+3*r,w*.56,7*r,"#c49661");
+    for(const yy of [p.y-h+13*r,p.y-14*r]){
+      rect(p.x-w/2-2*r,yy,w+4*r,5*r,"#596b78",2*r);
+      disc(p.x-5*r,yy+2*r,1.5*r,1.5*r,"#d8c497");
+    }
+    if(id.includes("Stacked")){
+      const q=pos(x+19*r,y-21*r);
+      rect(q.x-9*r,q.y-69*r,23*r,39*r,"#805736",5*r);
+      disc(q.x+2*r,q.y-69*r,13*r,6*r,"#bb9466");
+    }
+  }else if(/wood|crate/i.test(id)){
+    const width=27*r,h=34*r;
+    const q=pos(x,y);
+    poly([{x:q.x-width,y:q.y-h},{x:q.x,y:q.y-h-13*r},{x:q.x+width,y:q.y-h},
+      {x:q.x,y:q.y-h+13*r}],"#be8d59","#594238",2);
+    poly([{x:q.x-width,y:q.y-h},{x:q.x,y:q.y-h+13*r},{x:q.x,y:q.y+5*r},{x:q.x-width,y:q.y-7*r}],"#8e5d3f","#493a38",2);
+    poly([{x:q.x,y:q.y-h+13*r},{x:q.x+width,y:q.y-h},{x:q.x+width,y:q.y-7*r},{x:q.x,y:q.y+5*r}],"#76543c","#493a38",2);
+    stroke([{x:q.x-width+5*r,y:q.y-h+3*r},{x:q.x-5*r,y:q.y-h+13*r},{x:q.x-5*r,y:q.y}], "#c59c63",2.8*r);
+    stroke([{x:q.x+5*r,y:q.y-h+13*r},{x:q.x+width-5*r,y:q.y-h+3*r},{x:q.x+width-5*r,y:q.y-5*r}], "#a98056",2.8*r);
+    if(id.includes("Crates"))kenneyPropSecond(q.x+23*r,q.y+7*r,r*.75);
+  }else if(/chest/i.test(id)){
+    rect(p.x-26*r,p.y-44*r,52*r,33*r,"#865f41",5*r);
+    rect(p.x-29*r,p.y-51*r,58*r,14*r,"#af8453",5*r);
+    rect(p.x-18*r,p.y-53*r,6*r,45*r,"#bdac78",2*r);
+    rect(p.x+12*r,p.y-53*r,6*r,45*r,"#bdac78",2*r);
+    rect(p.x-7*r,p.y-38*r,14*r,16*r,"#d7b86b",2*r);
+    disc(p.x,p.y-30*r,3*r,3*r,"#3c404b");
+  }else if(/book|display|table|library/i.test(id)){
+    const w=35*r,h=83*r;
+    rect(p.x-w,p.y-h,w*2,h-7*r,"#775348",4*r);
+    rect(p.x-w+6*r,p.y-h+8*r,w*2-12*r,h-22*r,"#252f42",3*r);
+    for(let i=0;i<3;i++){
+      const sy=p.y-h+(i+1)*21*r;
+      rect(p.x-w+7*r,sy,w*2-14*r,3*r,"#b49062");
+      for(let b=0;b<7;b++)rect(p.x-w+11*r+b*7*r,sy-17*r,5*r,16*r,
+        ["#b06b65","#cba468","#568c94","#8b6b9c"][(b+i+key)%4],1*r);
+    }
+  }else{
+    kenneyPropSecond(p.x,p.y,r);
+  }
+  g.restore();return true;
+};
+function kenneyPropSecond(x,y,r){
+  rect(x-21*r,y-35*r,42*r,31*r,"#805a40",4*r);
+  rect(x-16*r,y-42*r,32*r,12*r,"#ba8855",3*r);
+  rect(x-3*r,y-44*r,6*r,42*r,"#d0ab6a",2*r);
+}
+// Shots and melee sparks get readable trails without modifying their hitboxes.
+const previousShot=isoShot;
+isoShot=function(s){
+  previousShot(s);
+  const p=pos(s.x,s.y,29);
+  const size=s.enemy?11:s.kind==="arrow"?7:10;
+  g.save();g.globalCompositeOperation="screen";
+  g.shadowBlur=s.enemy?20:15;g.shadowColor=s.enemy?"#ff4e85":"#6ce8ff";
+  disc(p.x,p.y,size,size*.65,s.enemy?"#ff7192bb":"#b3e4f5cc");
+  if(s.kind==="arrow"){
+    const q=pos(s.x+s.vx*.045,s.y+s.vy*.045,29);
+    stroke([{x:p.x,y:p.y},{x:q.x,y:q.y}],"#ffe9b7",3.5);
+    disc(q.x,q.y,3,3,"#fff5dc");
+  }
+  g.restore();
+};
+const previousParticle=isoParticle;
+isoParticle=function(p){
+  previousParticle(p);
+  if(p.kind==="slash"||p.kind==="ring"||p.kind==="spark"){
+    const q=pos(p.x,p.y,35),life=Math.max(0,p.life/p.max);
+    g.save();g.globalCompositeOperation="screen";g.globalAlpha=life*.8;
+    g.shadowColor=p.color||"#f6ca86";g.shadowBlur=16;
+    if(p.kind==="slash"){
+      const start=p.vx-p.vy*.5,end=p.vx+p.vy*.5,points=[];
+      for(let i=0;i<=18;i++){
+        const a=start+(end-start)*i/18;
+        points.push(pos(p.x+Math.cos(a)*p.size,p.y+Math.sin(a)*p.size,35));}
+      stroke(points,"#ffebc3",3.4*life);
+    }else if(p.kind==="ring"){
+      g.beginPath();g.ellipse(q.x,q.y,Math.max(8,p.size)*.9,Math.max(8,p.size)*.43,0,0,TAU);
+      g.strokeStyle=p.color;g.lineWidth=3.3;g.stroke();
+    }else{
+      stroke([{x:q.x-4,y:q.y},{x:q.x+4,y:q.y-7}],p.color||"#fff5c9",3);
+    }
+    g.restore();
+  }
+};
+
 // Read-only inspection marker for browser automation.
 window.__fractureCitadel={version:"1",tiles:55,license:"Kenney CC0",architecture:true,ready:()=>BLOCK_IDS.every(id=>blockImgs[id].complete&&blockImgs[id].naturalWidth>0)};
 })();
