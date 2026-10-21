@@ -7,9 +7,12 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  await page.waitForFunction(()=>window.__FRACTURE3D__?.gameStarted===true,{timeout:65000});
  const initial=await page.evaluate(()=>{
   const g=window.__FRACTURE3D__;
-  return {mode:g.mode,assets:g.assets.size,physics:!!g.physics,renderer:!!g.renderer.isWebGLRenderer,rooms:g.rooms.length};
+  return {mode:g.mode,assets:g.assets.size,physics:!!g.physics,renderer:!!g.renderer.isWebGLRenderer,rooms:g.rooms.length,
+    knightClips:g.animationClips.get('kay-knight')?.length||0,skeletonClips:g.animationClips.get('kay-skeleton')?.length||0,heroMixer:!!g.heroMixer};
  });
- expect(initial.mode).toBe('hub');expect(initial.assets).toBeGreaterThanOrEqual(25);expect(initial.renderer).toBe(true);
+ expect(initial.mode).toBe('hub');expect(initial.assets).toBeGreaterThanOrEqual(50);expect(initial.renderer).toBe(true);
+ expect(initial.heroMixer).toBe(true);expect(initial.knightClips).toBeGreaterThan(2);expect(initial.skeletonClips).toBeGreaterThan(2);
+ await page.waitForTimeout(1100);
  await page.screenshot({path:'qa/rebuild/hub-real.png'});
  const origin=await page.evaluate(()=>{
   const a=window.__FRACTURE3D__;return a.playerBody.translation();
@@ -55,6 +58,7 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  await page.waitForTimeout(160);
  const after=await page.evaluate(()=>window.__FRACTURE3D__.enemyUnits.at(-1)?.hp);
  expect(after).toBeLessThan(target.hp);
+ await page.screenshot({path:'qa/rebuild/combat-real.png'});
  // Keep combat damage and extraction: pickup persists to safe hub.
  const extracted=await page.evaluate(()=>{
   const app=window.__FRACTURE3D__;app.materials.iron=4;app.materials.embers=2;app.extract();
