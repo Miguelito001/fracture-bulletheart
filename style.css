@@ -12,3 +12,16 @@
 /* Notifications never cover the equipment HUD in the isometric renderer. */
 #notice{bottom:170px;max-width:min(80vw,700px);white-space:normal;text-align:center;line-height:1.35;font-size:12px;background:#111826e8;border-color:#6d7c84;box-shadow:0 10px 40px #0008}
 @media(max-width:900px){#notice{bottom:116px;max-width:90vw;font-size:11px}}
+
+/* FRACTURE CARTOON V3 - warm, sharp, readable RPG interface */
+#game{background:#101828}
+.hud-left,.hud-right .coin,.weapon,.ability,#map,.hub-stats span,#notice{
+  border-radius:9px;
+  border-color:#b9a27680;
+  box-shadow:0 5px 20px #02051260,inset 0 1px 0 #c7e3f21b;
+  background:linear-gradient(135deg,#1c2a3bee,#101b2df5);
+}
+.weapon.selected{border-color:#ffcb79;box-shadow:0 0 0 2px #d7ad6545,0 5px 30px #070a1a9e}
+.hub-mark{color:#ffe9c2;text-shadow:0 2px 18px #e9ae5d}
+#location-toast{color:#fff0c7;text-shadow:0 3px 12px #0a1020}
+#notice{bottom:166px;z-index:25}
