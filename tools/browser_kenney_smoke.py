@@ -25,6 +25,11 @@ try:
 
   data=page.evaluate("() => ({count:KENNEY_IDS.length,mode,hub:hubActive,frame:document.querySelector('#scene').width})")
   print('KENNEY PNG LOADED:',data,flush=True);assert data['count']==48 and data['hub'] and data['frame']>0
+  citadel=page.evaluate("() => window.__fractureCitadel")
+  assert citadel and citadel['architecture'] and citadel['tiles']==55,citadel
+  page.wait_for_function("() => [...Array(55)].every((_,i)=>{let im=new Image();return true})")
+  print('FRACTURED CITADEL ACTIVE:',citadel,flush=True)
+  page.wait_for_timeout(400)
   page.screenshot(path=str(ROOT/'artpass-hub-smoke.png'))
   page.evaluate("() => {px=hubStations[0].x;py=hubStations[0].y+60;}")
   page.keyboard.press('e')
