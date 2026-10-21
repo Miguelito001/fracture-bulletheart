@@ -23,3 +23,7 @@ Playtest: W+D from spawn to portal, E to start and E at Nó Zero to extract.
 ## Technical decisions
 
 The actual engine is TypeScript + Canvas 2D (no Phaser). Existing 2D hitboxes continue unchanged. All entity sprites and telegraphs are independently projected, rather than skewing the canvas globally.
+
+### Preview CC0 Art Pass (2.1)
+
+96 genuine CC0 Kenney sprites are bundled into the browser build: 48 environment pieces from Isometric Miniature Dungeon and Library, and 48 original eight-direction human idle/run frames from Kenney Dungeon Pack 2.3. See `ARTPASS_CC0.md` for creator credit, source commit hashes and licenses. Nonhumanoid creature art remains original pending dedicated monster-asset curation. **This is a preview branch**; the stable public game remains on `main`.
