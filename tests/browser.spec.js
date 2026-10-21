@@ -27,7 +27,16 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  });
  await page.waitForTimeout(100);
  await page.keyboard.press('e');
- await page.waitForFunction(()=>window.__FRACTURE3D__.mode==='playing',{timeout:18000});
+ await page.waitForTimeout(1250);
+ const transition=await page.evaluate(()=>{
+   const a=window.__FRACTURE3D__,p=a.playerBody.translation();
+   return {mode:a.mode,worldType:a.worldType,point:{x:p.x,z:p.z},
+     station:a.nearestStation?.(),errors:a.errors,
+     notice:document.getElementById('notice')?.textContent,
+     portal:{x:9*2.35,z:6*2.35}};
+ });
+ console.log('PORTAL_TRANSITION',JSON.stringify(transition),'JS_ERRORS',JSON.stringify(errors));
+ expect(transition.mode).toBe('playing');
  const entered=await page.evaluate(()=>{
   const g=window.__FRACTURE3D__;return {type:g.worldType,count:g.rooms.length,physics:!!g.playerCollider,gates:g.gates.length,visited:g.rooms.map(r=>r.layout.id)};
  });
