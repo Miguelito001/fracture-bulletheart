@@ -409,7 +409,21 @@ function keyHandler(e:KeyboardEvent){const k=e.key.toLowerCase();if(['arrowup','
 window.addEventListener('keydown',keyHandler);window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();mouseDown=false;});
 canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();aim.x=(e.clientX-r.left)/r.width*W;aim.y=(e.clientY-r.top)/r.height*H;});
 canvas.addEventListener('mousedown',e=>{if(e.button!==0)return;mouseDown=true;attackInputStart();});window.addEventListener('mouseup',e=>{if(e.button!==0)return;mouseDown=false;attackInputEnd();});canvas.addEventListener('contextmenu',e=>e.preventDefault());
-el('#pause-button').onclick=pause;
+// HUD actions are buttons in practice: pointer and touch work as well as hotkeys.
+ for(const [selector,action] of [
+   ['#weapon1',()=>swap(0)],['#weapon2',()=>swap(1)],
+   ['.ability:nth-last-child(4)',()=>dash()],
+   ['.ability:nth-last-child(3)',()=>special()],
+   ['.ability.potion',()=>{if(mode==='playing'&&run.potions>0&&run.hp<run.maxHp){run.potions--;run.hp=Math.min(run.maxHp,run.hp+Math.round(run.maxHp*.35));sound('pick');updateHud();}}],
+   ['.hud-bottom .ability:last-child',()=>{if(mode==='playing'){mapVisible=!mapVisible;drawMap();}}]
+ ] as [string,()=>void][]){
+  const element=document.querySelector(selector) as HTMLElement|null;
+  if(element){element.setAttribute('role','button');element.setAttribute('tabindex','0');
+    element.addEventListener('click',e=>{e.stopPropagation();action();});
+    element.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();action();}});
+  }
+ }
+ el('#pause-button').onclick=pause;
 function enemyFire(m:Mob){const a=angle(m,{x:px,y:py});const kind=m.kind;
  if(kind==='crawler'||kind==='knight'||kind==='elite'){if(distance(m,{x:px,y:py})<m.radius+35)damagePlayer(m.attack+run.floor*2);if(kind==='elite')for(let i=-1;i<=1;i++)makeShot(m.x,m.y,a+i*.28,310,15+run.floor*2,true,'enemy',2,0,8);}
  else if(kind==='ranger'){makeShot(m.x,m.y,a,370+run.floor*12,13+run.floor*2,true,'enemy',2,0,8);}
@@ -428,7 +442,18 @@ function updateEnemies(dt:number){for(const m of mobs){if(m.dead)continue;m.cd-=
  if(m.windup>0){m.windup-=dt;if(m.windup<=0){enemyFire(m);const base=m.kind==='boss'?Math.max(.55,1.9-m.phase*.33-run.floor*.08):m.kind==='wisp'?2.8:m.kind==='bomber'?2.3:m.kind==='ranger'?2:m.kind==='elite'?1.5:1.0;m.cd=m.kind==='boss'?base:base/commonCadenceScale(run.floor,run.level)/(m.champion?1.12:1);}continue;}
  if(m.cd<=0&&dist<(m.kind==='boss'?650:m.kind==='ranger'?540:m.kind==='wisp'?440:m.kind==='bomber'?530:90)){m.windup=m.kind==='boss'?.75:m.kind==='ranger'?.55:m.kind==='bomber'?.7:m.kind==='wisp'?.7:.43;continue;}
  const canMove=dist<(m.kind==='boss'?600:650)&&dist>(m.kind==='ranger'?210:m.kind==='bomber'?195:m.kind==='wisp'?140:55);
- if(canMove){const v=vec(a,m.speed*dt*(m.kind==='boss'?.7:1));moveWithCollision(m,v.x,v.y,m.radius*.65);if(['ranger','wisp','bomber'].includes(m.kind)&&dist<450){const strafe=Math.sin(globalTime*1.5+m.id*2.2)*m.speed*dt*.33;const side=vec(a+Math.PI/2,strafe);moveWithCollision(m,side.x,side.y,m.radius*.65);}}
+ if(canMove){const v=vec(a,m.speed*dt*(m.kind==='boss'?.7:1));
+   const oldX=m.x,oldY=m.y;
+   moveWithCollision(m,v.x,v.y,m.radius*.65);
+   if(Math.hypot(m.x-oldX,m.y-oldY)<m.speed*dt*.25){
+     // Local wall-following: retains original attack cadence and aggression.
+     const side=(m.id%2?1:-1),step=m.speed*dt*.84;
+     for(const delta of [side*Math.PI/2,-side*Math.PI/2,side*Math.PI*.75]){
+       const q=vec(a+delta,step),prevX=m.x,prevY=m.y;
+       moveWithCollision(m,q.x,q.y,m.radius*.65);
+       if(Math.hypot(m.x-prevX,m.y-prevY)>step*.45)break;
+     }
+   }if(['ranger','wisp','bomber'].includes(m.kind)&&dist<450){const strafe=Math.sin(globalTime*1.5+m.id*2.2)*m.speed*dt*.33;const side=vec(a+Math.PI/2,strafe);moveWithCollision(m,side.x,side.y,m.radius*.65);}}
  else if(['ranger','bomber','wisp'].includes(m.kind)&&dist<120){const v=vec(a,m.speed*dt*.6);moveWithCollision(m,-v.x,-v.y,m.radius*.65);}
  }
 }
@@ -454,7 +479,12 @@ function updatePlayer(dt:number){attackCD=Math.max(0,attackCD-dt);dashCD=Math.ma
  if(r&&battleTrigger(r,{x:px,y:py})&&(!r.seen||(r.kind==='boss'&&!r.active&&!r.cleared&&run.sigils>=2)))visitRoom(r);
  if(r&&(!current?.active||r===current))current=r;
  if(run.orbit){for(let k=0;k<run.orbit;k++){const a=globalTime*2.8+k*Math.PI*2/run.orbit;const pos={x:px+Math.cos(a)*88,y:py+Math.sin(a)*88};for(const m of mobs)if(!m.dead&&distance(pos,m)<m.radius+13&&Math.random()<dt*3)hurt(m,22,'orbit');}}
- camera.x+=(px-W/2-camera.x)*Math.min(1,dt*7);camera.y+=(py-H/2-camera.y)*Math.min(1,dt*7);
+ // Small camera lead keeps targets ahead visible without changing combat hitboxes.
+ const pointerWorld=isoUnproject(aim.x,aim.y);
+ const leadX=clamp(pointerWorld.x-px,-140,140)*.17;
+ const leadY=clamp(pointerWorld.y-py,-140,140)*.17;
+ camera.x+=(px+leadX-W/2-camera.x)*Math.min(1,dt*5.4);
+ camera.y+=(py+leadY-H/2-camera.y)*Math.min(1,dt*5.4);
 }
 function tick(dt:number){globalTime+=dt;run.runTime+=dt;sessionTimer+=dt;if(sessionTimer>=5){sessionTimer=0;persistSession();}if(returnCast>0){returnCast-=dt;if(returnCast<=0){returnCast=0;if(run.scrolls>0){run.scrolls--;settleExpedition('extraction');}return;}el('#notice').textContent='✦ RETORNO À CÂMARA ÂNCORA EM '+returnCast.toFixed(1)+'s — NÃO SE MOVA';el('#notice').style.opacity='1';noticeTimer=.2;}noticeTimer-=dt;locationTimer-=dt;screenShake=Math.max(0,screenShake-dt*35);screenFlash=Math.max(0,screenFlash-dt);
  if(noticeTimer<=0)el('#notice').style.opacity='0';if(locationTimer<=0)el('#location-toast').style.opacity='0';
