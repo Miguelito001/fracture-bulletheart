@@ -1,0 +1,42 @@
+name: FRACTURE 3D — Gameplay and Art QA
+on:
+  push:
+    branches: ["feature/rebuild-3d-rapier"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fracture-3d-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install game engine and test dependencies
+        run: npm install --no-audit --no-fund
+      - name: Download and verify actual Kenney CC0 GLB art
+        run: npm run assets
+      - name: Test authored dungeon architecture
+        run: npm test
+      - name: Compile bundled Three.js/Rapier game
+        run: npm run build
+      - name: Install real Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Full browser playthrough and collision checks
+        run: npm run test:browser
+      - name: Capture screenshots and playable Web build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fracture-3d-playable-build-and-QA
+          path: |
+            dist/
+            qa/rebuild/
+          if-no-files-found: warn
+          retention-days: 14

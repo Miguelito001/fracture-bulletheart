@@ -1,15 +1,23 @@
 {
-  "name": "fracture-bulletheart",
+  "name": "fracture-bulletheart-rebuild",
   "private": true,
-  "version": "2.0.0-alpha.1",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "node tools/dev.mjs",
-    "build": "node tools/build.mjs",
-    "check": "tsc --noEmit src/main.ts --target ES2022 --module ESNext --lib ES2022,DOM --strict --skipLibCheck",
-    "test": "node --test tests/*.test.mjs"
+    "assets": "node scripts/get-cc0-models.mjs",
+    "dev": "vite --host 0.0.0.0",
+    "build": "node scripts/get-cc0-models.mjs && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "three": "^0.180.0",
+    "@dimforge/rapier3d-compat": "^0.19.3",
+    "easystarjs": "^0.4.4"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "vite": "^7.1.0",
+    "@playwright/test": "^1.58.0"
   }
 }

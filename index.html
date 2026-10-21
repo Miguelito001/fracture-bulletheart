@@ -1,1 +1,40 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>FRACTURE · REINO PARTIDO · THE FRACTURED CITADEL</title><link rel="stylesheet" href="./style.css"/></head><body><main id="game"><canvas id="scene" width="1280" height="720"></canvas><div id="vignette"></div><div id="hub-status" class="hidden"><div class="hub-mark">✦ CÂMARA ÂNCORA <small>· REFÚGIO ISOMÉTRICO</small></div><div class="hub-stats"><span>✦ ECOS <b id="hub-echoes">0</b></span><span>◈ PERGAMINHOS <b id="hub-scrolls">0</b></span><span>⚑ EXTRAÇÕES <b id="hub-extractions">0</b></span></div></div><div id="hud" class="hidden"><section class="hud-left"><div class="crest">✦</div><div class="bar-block"><div class="bar-label"><b id="hp-text">120 / 120</b><span>VIDA</span></div><div class="bar-track"><div id="hp-bar"></div></div><div class="bar-label xp-label"><b id="xp-text">NÍVEL 1</b><span id="floor-text">CRIPTA I</span></div><div class="bar-track xp-track"><div id="xp-bar"></div></div></div></section><section class="hud-right"><div class="coin">✦ <span id="coin-text">0</span></div><div id="map"></div></section><section id="boss-ui" class="hidden"><div id="boss-name">O GUARDIÃO</div><div class="bar-track boss-track"><div id="boss-bar"></div></div></section><section class="hud-bottom"><div id="inventory"><div class="weapon selected" id="weapon1"><strong>1</strong><img id="weapon-icon1" class="weapon-icon" alt="" src="./assets/oss-icons/sword.svg"/><div><span id="weapon-name1">ESPADA</span><small id="weapon-desc1">CORTE</small></div></div><div class="weapon" id="weapon2"><strong>2</strong><img id="weapon-icon2" class="weapon-icon" alt="" src="./assets/oss-icons/sword.svg"/><div><span id="weapon-name2">REVÓLVER</span><small id="weapon-desc2">TIRO</small></div></div></div><div class="ability"><span>ESQUIVA</span><div class="cool"><div id="dash-cool"></div></div><small>ESPAÇO</small></div><div class="ability"><span>ESPECIAL</span><div class="cool"><div id="special-cool"></div></div><small>Q</small></div><div class="ability potion"><span>POÇÕES</span><b id="potions">2</b><small>H</small></div><div class="ability"><span>MAPA</span><small>TAB</small></div></section><div id="location-toast"></div><div id="notice"></div></div><div id="overlay"></div><div id="pause-button" class="hidden">Ⅱ</div><div id="footer-hint">WASD MOVER &nbsp; · &nbsp; MOUSE MIRAR &nbsp; · &nbsp; CLIQUE ATACAR &nbsp; · &nbsp; ESPAÇO ESQUIVAR &nbsp; · &nbsp; Q ESPECIAL &nbsp; · &nbsp; E INTERAGIR</div></main><script defer src="./room_prefabs.js"></script><script defer src="./game.js"></script><script defer src="./cartoon_scene.js"></script><script defer src="./fracture_world.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta name="theme-color" content="#101925" />
+  <title>FRACTURE: BULLETHEART — 3D Rebuild</title>
+</head>
+<body>
+  <canvas id="scene" aria-label="FRACTURE: masmorra 3D interativa"></canvas>
+  <main id="ui">
+    <div id="loading">Carregando o novo FRACTURE…</div>
+    <div id="menu" class="hidden"></div>
+    <div id="hud" class="hidden">
+      <section class="hud-top">
+        <div class="stat-block">
+          <div class="caption"><span>✦ FRACTURE / BULLETHEART</span><span id="status">REFÚGIO SEGURO</span></div>
+          <div class="health-track"><div id="healthfill"></div></div>
+          <div class="caption secondary"><span id="healthtext">100 / 100</span><span id="level">NÍVEL 1</span><span id="xp">XP 0</span></div>
+        </div>
+        <div class="room-head"><div class="eyebrow" id="objective">CÂMARA ÂNCORA</div><div id="roomname">CÂMARA ÂNCORA</div></div>
+        <div class="purse"><span>✧ ECOS</span><b id="echoes">0</b><div id="materials">FERRO 0 · BRASAS 0</div></div>
+      </section>
+      <div id="crosshair"></div>
+      <section class="hud-bottom">
+        <div class="weapon-group"><button data-action="blade"><kbd>1</kbd> ⚔ <span id="stance">LÂMINA ERRANTE</span></button>
+          <button data-action="gun"><kbd>2</kbd> ⊕ <span>REVÓLVER</span></button></div>
+        <div class="ability-group"><button data-action="dodge">⤨ <span>ESQUIVA</span><kbd>ESPAÇO</kbd></button>
+          <button data-action="attack">⚔ <span>ATACAR</span><kbd>CLIQUE</kbd></button>
+          <button data-action="interact">✧ <span>INTERAGIR</span><kbd>E</kbd></button>
+          <button data-action="heal">✚ <span>POÇÃO: <b id="potions">2</b></span><kbd>H</kbd></button></div>
+      </section>
+      <div id="notice" class="hidden" role="status"></div>
+      <div id="controls">WASD PARA MOVER · E INTERAGIR</div>
+      <button data-action="pause" id="pause">Ⅱ</button>
+    </div>
+  </main>
+  <script type="module" src="/src3d/game.js"></script>
+</body>
+</html>
