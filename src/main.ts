@@ -66,7 +66,49 @@ const tileKey=(x:number,y:number)=>`${x},${y}`;const tile=(x:number,y:number)=>t
 const floorAt=(x:number,y:number)=>world.has(tile(x,y))&&!blocked.has(tile(x,y));
 type SceneProp=XY & {kind:'pillar'|'crate'|'barrel'|'ruin'|'brazier'};
 let sceneProps:SceneProp[]=[];
+let structuralColliders:{x:number;y:number;r:number}[]=[];
 // Station geometry is shared by navigation and interaction; visual-only details remain non-solid.
+function refreshStructuralColliders(){
+ const pillars:{x:number;y:number;r:number}[]=[];
+ const add=(x:number,y:number,r=23)=>pillars.push({x,y,r});
+ if(hubActive){
+  // Convert the exact ISO-screen position of architectural flank columns back
+  // to world coordinates. These match station()'s physically rendered pillars.
+  const unoffset=(sx:number,sy:number)=>{
+    const u=sx/ISO_SX,v=sy/ISO_SY;
+    return {x:(u+v)/2,y:(v-u)/2};
+  };
+  for(const station of hubStations){
+    const spec=station.id==='portal'?{w:137,h:35}:station.id==='forge'?{w:131,h:30}:
+      station.id==='merchant'?{w:112,h:31}:station.id==='archive'?{w:136,h:27}:
+      station.id==='vault'?{w:128,h:36}:{w:95,h:21};
+    for(const side of [-1,1]){
+      const p=unoffset(side*spec.w,spec.h);
+      add(station.x+p.x,station.y+p.y,station.id==='portal'?27:24);
+    }
+  }
+ }else{
+  for(const room of rooms){
+    const x=room.cx,y=room.cy;
+    if(room.kind==='boss'){
+      for(let i=0;i<4;i++){
+        const a=i*Math.PI/2+Math.PI/4;
+        add(x+Math.cos(a)*245,y+Math.sin(a)*245,26);
+      }
+    }else if(room.kind==='elite'){
+      add(x-220,y-145,27);add(x+220,y+145,27);
+    }else if(room.kind==='battle'){
+      const seed=(Math.imul(room.gx+503,73856093)^Math.imul(room.gy+701,19349663)^Math.imul((run.floor||1)+911,83492791))>>>0;
+      if(seed%3===2){add(x-204,y-148,25);add(x+210,y+143,25);}
+    }
+  }
+ }
+ structuralColliders=pillars;
+}
+function structureCollision(x:number,y:number,r=0){
+ return structuralColliders.some(p=>Math.hypot(p.x-x,p.y-y)<p.r+r);
+}
+
 function stationCollision(x:number,y:number,r:number){
  if(!hubActive)return false;
  return hubStations.some(s=>Math.hypot(x-s.x,y-s.y)<r+(
@@ -79,7 +121,7 @@ function addSceneProp(tx:number,ty:number,kind:SceneProp['kind']){
  blocked.add(key);sceneProps.push(p);return true;
 }
 function walkable(x:number,y:number,r=16){
- if(stationCollision(x,y,r))return false;
+ if(stationCollision(x,y,r)||structureCollision(x,y,r))return false;
  return floorAt(x-r,y-r)&&floorAt(x+r,y-r)&&floorAt(x-r,y+r)&&floorAt(x+r,y+r);
 }
 // Move in short, safe steps. The previous small-radius fallback could leave the player inside a wall.
@@ -232,7 +274,7 @@ function generateFloor(){world=new Set();blocked=new Set();rooms=[];mobs=[];shot
  }
  // Preserve complete walkable routes for every seed; entrances and corridors
  // are continuous even with corners and decorative stone columns.
- const start=rooms[0];px=start.cx;py=start.cy;visitRoom(start);camera.x=px-W/2;camera.y=py-H/2;showLocation(regionNames[(run.floor-1)%5]);sound('room');}
+ refreshStructuralColliders();const start=rooms[0];px=start.cx;py=start.cy;visitRoom(start);camera.x=px-W/2;camera.y=py-H/2;showLocation(regionNames[(run.floor-1)%5]);sound('room');}
 
 function roomAt(x:number,y:number){let found:Room|null=null,best=999999;for(const r of rooms){const dx=Math.abs(x-r.cx),dy=Math.abs(y-r.cy),metric=dx/8+dy/6;if(dx<T*7.5&&dy<T*5.5&&metric<best){best=metric;found=r;}}return found;}
 function nearMobKind(floor:number):MobKind{const types:MobKind[]=['crawler','crawler','crawler','ranger','knight','wisp'];if(floor>=2)types.push('bomber','ranger','knight');if(floor>=3)types.push('wisp','bomber','elite');return pick(types);}
@@ -303,7 +345,7 @@ function openReward(fromBoss:boolean){mode='choice';mouseDown=false;
  const titles=options.map(x=>weaponNames[x]);showOverlay(`<div class="modal"><header>✦ &nbsp; ${fromBoss?'DESPOJOS DO GUARDIÃO':'TESOURO ANTIGO'}</header><h2>Escolha o que levar.</h2><p class="lead">Armas diferentes, formas diferentes de lutar. Cada descoberta entra no Arquivo para futuras expedições.</p><div class="cards">${options.map((x,i)=>card(weaponNames[x],weaponDesc[x],'NOVA ARMA',x==='hammer'?'🔨':x==='bow'?'🏹':x==='staff'?'✧':x==='shotgun'?'⚡':'⚔',i)).join('')}${card('RELIQUIÁRIO','Duas evoluções aleatórias. Mantém seu arsenal.','ARTEFATO','✦',2)}</div></div>`);
  bindChoice([()=>{run.weapons[run.slot]=options[0];discover(options[0]);},()=>{run.weapons[run.slot]=options[1];discover(options[1]);},()=>{choicesOf(upgradeDefs,2).forEach(u=>{u.apply();discover(`up-${u.id}`);});}].map(fn=>()=>{fn();if(fromBoss)advanceFloor();}));}
 function rememberFloor(){floorMemory.set(run.floor,{world,blocked,rooms,mobs,loot,sigils:run.sigils,props:sceneProps});}
-function restoreFloor(which:number,nearBoss=false){const snap=floorMemory.get(which);if(!snap)return false;world=snap.world;blocked=snap.blocked;rooms=snap.rooms;mobs=snap.mobs;loot=snap.loot;sceneProps=snap.props||[...blocked].map(key=>{const [x,y]=key.split(',').map(Number);return {x:(x+.5)*T,y:(y+.5)*T,kind:'ruin' as const};});shots=[];particles=[];run.floor=which;run.sigils=snap.sigils;bossCurrent=mobs.find(m=>m.kind==='boss'&&!m.dead)||null;current=nearBoss?rooms.find(r=>r.kind==='boss')||rooms[0]:rooms[0];px=current.cx;py=current.cy;camera.x=px-W/2;camera.y=py-H/2;showLocation(regionNames[(which-1)%5]);return true;}
+function restoreFloor(which:number,nearBoss=false){const snap=floorMemory.get(which);if(!snap)return false;world=snap.world;blocked=snap.blocked;rooms=snap.rooms;mobs=snap.mobs;loot=snap.loot;sceneProps=snap.props||[...blocked].map(key=>{const [x,y]=key.split(',').map(Number);return {x:(x+.5)*T,y:(y+.5)*T,kind:'ruin' as const};});refreshStructuralColliders();shots=[];particles=[];run.floor=which;run.sigils=snap.sigils;bossCurrent=mobs.find(m=>m.kind==='boss'&&!m.dead)||null;current=nearBoss?rooms.find(r=>r.kind==='boss')||rooms[0]:rooms[0];px=current.cx;py=current.cy;camera.x=px-W/2;camera.y=py-H/2;showLocation(regionNames[(which-1)%5]);return true;}
 function advanceFloor(){if(run.floor>=run.maxFloor){win();return;}rememberFloor();persistSession();run.floor++;run.hp=Math.min(run.maxHp,run.hp+Math.round(run.maxHp*.26));if(!restoreFloor(run.floor))generateFloor();}
 function retreatFloor(){if(run.floor<=1)return;rememberFloor();persistSession();if(restoreFloor(run.floor-1,true))showNotice('A ESCADARIA RETORNA AO ANDAR ANTERIOR',3);}
 function settleExpedition(kind:'death'|'extraction'|'victory'){clearSession();
@@ -458,7 +500,7 @@ function updateEnemies(dt:number){for(const m of mobs){if(m.dead)continue;m.cd-=
  }
 }
 function updateShots(dt:number){for(let i=shots.length-1;i>=0;i--){const s=shots[i];s.life-=dt;if(s.life<=0){shots.splice(i,1);continue;}s.x+=s.vx*dt;s.y+=s.vy*dt;
- if(!floorAt(s.x,s.y)){shots.splice(i,1);burst(s.x,s.y,s.enemy?'#e48ea9':'#f4d695',3,70);continue;}
+ if(!floorAt(s.x,s.y)||structureCollision(s.x,s.y,s.r)){shots.splice(i,1);burst(s.x,s.y,s.enemy?'#e48ea9':'#f4d695',3,70);continue;}
  if(s.enemy){if(distance(s,{x:px,y:py})<s.r+15){damagePlayer(s.damage);shots.splice(i,1);}continue;}
  for(const m of mobs){if(m.dead||s.hit.has(m.id)||distance(s,m)>s.r+m.radius)continue;s.hit.add(m.id);hurt(m,s.damage,s.kind);s.pierce--;burst(s.x,s.y,'#f5d38a',4,90);if(s.pierce<0){shots.splice(i,1);break;}if(run.bounce&&!m.dead){const o=mobs.find(o=>!o.dead&&o!==m&&distance(o,m)<200);if(o){const v=vec(angle(s,o),Math.hypot(s.vx,s.vy));s.vx=v.x;s.vy=v.y;}}}
  for(const m of mobs){if(s.enemy||s.pierce<0||!m.shield||m.kind!=='boss')continue;for(const an of [...m.anchors]){if(distance(s,an)<s.r+24){damageAnchor(an.x,an.y,18,s.damage);s.pierce--;break;}}}
@@ -591,12 +633,12 @@ const unpackFloor=(value:StoredFloor):FloorMemory=>({world:new Set(value.world),
 function clearSession(){try{localStorage.removeItem(SESSION_KEY);}catch{}}
 function persistSession(){if(hubActive||!run||run.hp<=0)return;try{const memory=[...floorMemory].map(([id,f])=>[id,packFloor(f)]);const raw={version:1,run,world:[...world],blocked:[...blocked],rooms,mobs,loot,sceneProps,px,py,currentId:current?.id??0,memory,nextMob};localStorage.setItem(SESSION_KEY,JSON.stringify(raw));}catch{}}
 function restoreSession():boolean{try{const data=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');if(!data||data.version!==1||!data.run||!Array.isArray(data.rooms)||!Array.isArray(data.world)||!Array.isArray(data.mobs)||!Array.isArray(data.loot)||data.world.length>15000||data.mobs.length>1500||data.run.hp<=0||!['wanderer','bulwark','arcanist'].includes(data.run.classId))return false;
- run=data.run;run.cargo||=[];run.scrolls||=0;rooms=data.rooms;world=new Set(data.world);blocked=new Set(data.blocked);mobs=data.mobs;loot=data.loot;sceneProps=Array.isArray(data.sceneProps)?data.sceneProps:[...blocked].map(key=>{const [x,y]=key.split(',').map(Number);return {x:(x+.5)*T,y:(y+.5)*T,kind:'ruin' as const};});shots=[];particles=[];floorMemory=new Map((data.memory||[]).map(([id,f]:[number,StoredFloor])=>[id,unpackFloor(f)]));px=data.px;py=data.py;nextMob=data.nextMob||1;current=rooms.find(q=>q.id===data.currentId)||rooms[0]||null;camera.x=px-W/2;camera.y=py-H/2;hubActive=false;mode='playing';el('#hud').classList.remove('hidden');el('#hub-status').classList.add('hidden');el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='EXPEDIÇÃO · I MOCHILA · R RETORNO (4s) · E NÓ ZERO · WASD · ESPAÇO · Q';showNotice('EXPEDIÇÃO RECUPERADA. A MASMORRA NÃO MUDOU.',3.5);return true;
+ run=data.run;run.cargo||=[];run.scrolls||=0;rooms=data.rooms;world=new Set(data.world);blocked=new Set(data.blocked);mobs=data.mobs;loot=data.loot;sceneProps=Array.isArray(data.sceneProps)?data.sceneProps:[...blocked].map(key=>{const [x,y]=key.split(',').map(Number);return {x:(x+.5)*T,y:(y+.5)*T,kind:'ruin' as const};});shots=[];particles=[];floorMemory=new Map((data.memory||[]).map(([id,f]:[number,StoredFloor])=>[id,unpackFloor(f)]));px=data.px;py=data.py;nextMob=data.nextMob||1;current=rooms.find(q=>q.id===data.currentId)||rooms[0]||null;camera.x=px-W/2;camera.y=py-H/2;hubActive=false;refreshStructuralColliders();mode='playing';el('#hud').classList.remove('hidden');el('#hub-status').classList.add('hidden');el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='EXPEDIÇÃO · I MOCHILA · R RETORNO (4s) · E NÓ ZERO · WASD · ESPAÇO · Q';showNotice('EXPEDIÇÃO RECUPERADA. A MASMORRA NÃO MUDOU.',3.5);return true;
  }catch{return false;}}
 window.addEventListener('pagehide',()=>{if(!hubActive&&run?.hp>0)persistSession();});
 
 // The Anchor Chamber is a permanent, walkable place. It is NEVER procedurally regenerated.
-function enterHub(){clearSession();hubActive=true;returnCast=0;castStart=null;run=createRun(save.preferredClass||'wanderer');world=new Set();blocked=new Set();sceneProps=[];rooms=[];mobs=[];shots=[];loot=[];particles=[];current=null;for(let x=-13;x<=13;x++)for(let y=-9;y<=9;y++){const core=Math.abs(x)<=6&&Math.abs(y)<=5;const forge=x>=-13&&x<=-6&&y>=-6&&y<=-1;const archive=x>=-13&&x<=-6&&y>=1&&y<=7;const merchant=x>=6&&x<=13&&y>=-6&&y<=-1;const vault=x>=6&&x<=13&&y>=1&&y<=7;const portal=Math.abs(x)<=4&&y>=-9&&y<=-4;const altar=Math.abs(x)<=4&&y>=4&&y<=9;if(core||forge||archive||merchant||vault||portal||altar)world.add(tileKey(HUB.x/T+x,HUB.y/T+y));}for(const [x,y] of [[-5,-4],[5,-4],[-5,4],[5,4],[-9,-5],[9,-5],[-9,5],[9,5]])addSceneProp(HUB.x/T+x,HUB.y/T+y,'pillar');px=HUB.x;py=HUB.y+35;camera.x=px-W/2;camera.y=py-H/2;mode='hub';el('#overlay').innerHTML='';el('#hud').classList.add('hidden');el('#hub-status').classList.remove('hidden');updateHubLabel();el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='CÂMARA ÂNCORA · WASD MOVER · E INTERAGIR · I MOCHILA · ESC PAUSAR';showLocation('CÂMARA ÂNCORA');}
+function enterHub(){clearSession();hubActive=true;returnCast=0;castStart=null;run=createRun(save.preferredClass||'wanderer');world=new Set();blocked=new Set();sceneProps=[];rooms=[];mobs=[];shots=[];loot=[];particles=[];current=null;for(let x=-13;x<=13;x++)for(let y=-9;y<=9;y++){const core=Math.abs(x)<=6&&Math.abs(y)<=5;const forge=x>=-13&&x<=-6&&y>=-6&&y<=-1;const archive=x>=-13&&x<=-6&&y>=1&&y<=7;const merchant=x>=6&&x<=13&&y>=-6&&y<=-1;const vault=x>=6&&x<=13&&y>=1&&y<=7;const portal=Math.abs(x)<=4&&y>=-9&&y<=-4;const altar=Math.abs(x)<=4&&y>=4&&y<=9;if(core||forge||archive||merchant||vault||portal||altar)world.add(tileKey(HUB.x/T+x,HUB.y/T+y));}for(const [x,y] of [[-5,-4],[5,-4],[-5,4],[5,4],[-9,-5],[9,-5],[-9,5],[9,5]])addSceneProp(HUB.x/T+x,HUB.y/T+y,'pillar');refreshStructuralColliders();px=HUB.x;py=HUB.y+35;camera.x=px-W/2;camera.y=py-H/2;mode='hub';el('#overlay').innerHTML='';el('#hud').classList.add('hidden');el('#hub-status').classList.remove('hidden');updateHubLabel();el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='CÂMARA ÂNCORA · WASD MOVER · E INTERAGIR · I MOCHILA · ESC PAUSAR';showLocation('CÂMARA ÂNCORA');}
 function updateHub(dt:number){globalTime+=dt;noticeTimer-=dt;locationTimer-=dt;let dx=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),dy=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));const direction=isoMove(dx,dy);moveWithCollision({get x(){return px;},set x(v:number){px=v;},get y(){return py;},set y(v:number){py=v;}},direction.x*240*dt,direction.y*240*dt,15);camera.x+=(px-W/2-camera.x)*Math.min(1,dt*8);camera.y+=(py-H/2-camera.y)*Math.min(1,dt*8);if(noticeTimer<=0)el('#notice').style.opacity='0';if(locationTimer<=0)el('#location-toast').style.opacity='0';}
 function updateHubLabel(){el('#hub-echoes').textContent=String(save.echoes);el('#hub-scrolls').textContent=String(save.portalScrolls||0);el('#hub-extractions').textContent=String(save.extractions||0);}
 function drawHubStations(){
