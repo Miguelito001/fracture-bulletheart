@@ -3,6 +3,6 @@ Source: https://kenney-assets.itch.io/isometric-blocks
 License: Creative Commons Zero 1.0 Universal (CC0-1.0)
 Mirror: https://github.com/GeorgeQLe/assets-2d-isometric
 Mirror commit: 0d66f7aebf6faf651ab680c9b83b2d8a40e666a1
-Images: 29 individually extracted Voxel tiles sprites
+Images: 55 individually extracted Voxel tiles sprites
 All assets bundled in the repository, no runtime network downloads.
 Full official notice: https://creativecommons.org/publicdomain/zero/1.0/
