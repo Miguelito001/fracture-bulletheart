@@ -19,6 +19,7 @@ const output = new URL('../public/models/', import.meta.url);
 const sourced = [...MODELS.map(name=>({file:name,model:name,pack:'mini-dungeon'})),
  ...OTHER.graveyard.map(name=>({file:`grave-${name}`,model:name,pack:'graveyard-kit'})),
  ...OTHER.castle.map(name=>({file:`castle-${name}`,model:name,pack:'castle-kit'})),
+ {file:'blaster-g',model:'blaster-g',pack:'blaster-kit'},
  {file:'kay-knight',repo:'KayKit-Character-Pack-Adventures-1.0',commit:'672074b73ba276876a19e8816ecdc5241817ab47',folder:'addons/kaykit_character_pack_adventures/Characters/gltf',model:'Knight'},
  {file:'kay-rogue',repo:'KayKit-Character-Pack-Adventures-1.0',commit:'672074b73ba276876a19e8816ecdc5241817ab47',folder:'addons/kaykit_character_pack_adventures/Characters/gltf',model:'Rogue_Hooded'},
  {file:'kay-skeleton',repo:'KayKit-Character-Pack-Skeletons-1.0',commit:'15b62b9bad122f72926c10fb14d622c73819fa54',folder:'addons/kaykit_character_pack_skeletons/Characters/gltf',model:'Skeleton_Warrior'},
