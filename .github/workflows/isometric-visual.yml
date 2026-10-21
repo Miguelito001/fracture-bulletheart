@@ -1,7 +1,7 @@
-name: Isometric visual review
+name: FRACTURE Cartoon V3 Asset Import and Browser QA
 on:
   push:
-    branches: [feature/isometric-v2]
+    branches: [feature/isov2-cartoon]
   workflow_dispatch:
 permissions:
   contents: write
@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Import verified Kenney CC0 voxel sprites
+        run: python tools/import_voxel_cc0.py
       - name: Compile and validate
         run: |
           npm ci
@@ -42,6 +44,6 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add qa/screenshots/*.png qa/screenshots/*.jpg
+          git add assets/voxel qa/screenshots/*.png qa/screenshots/*.jpg
           git commit -m "ci: capture isometric screenshots" || exit 0
-          git push origin feature/isometric-v2
+          git push origin feature/isov2-cartoon
