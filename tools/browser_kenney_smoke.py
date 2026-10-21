@@ -82,7 +82,7 @@ try:
         const [x,y]=queue[i].split(',').map(Number);
         for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
           const key=tileKey(x+dx,y+dy);
-          if(world.has(key)&&!blocked.has(key)&&!seen.has(key)){seen.add(key);queue.push(key);}
+          if(!seen.has(key)&&walkable((x+dx+.5)*T,(y+dy+.5)*T,12)){seen.add(key);queue.push(key);}
         }
       }
       const reachable=rooms.every(r=>seen.has(tile(r.cx,r.cy)));
