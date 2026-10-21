@@ -236,17 +236,17 @@ function generateFloor(){world=new Set();blocked=new Set();rooms=[];mobs=[];shot
  // A complete, frozen library of 200 templates. Randomness chooses 100 eligible
  // presets each expedition, then selects distinct matching rooms from that pool.
  const quotas:Record<RoomKind,number>={start:6,battle:55,elite:10,boss:6,treasure:6,shrine:5,forge:5,heal:4,secret:3};
- const candidates:RoomPrefab[]=[];
+ const blueprintCandidates:RoomPrefab[]=[];
  for(const kind of Object.keys(quotas) as RoomKind[]){
    const matching=FRACTURE_ROOM_PREFABS.filter(p=>p.kind===kind);
    // Fisher-Yates selects different pre-existing rooms rather than building new shapes.
    const shuffled=[...matching];
    for(let i=shuffled.length-1;i>0;i--){const j=int(0,i);[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
-   candidates.push(...shuffled.slice(0,quotas[kind]));
+   blueprintCandidates.push(...shuffled.slice(0,quotas[kind]));
  }
- if(candidates.length!==100||FRACTURE_ROOM_PREFABS.length!==200)throw Error('Biblioteca de salas inconsistente');
+ if(blueprintCandidates.length!==100||FRACTURE_ROOM_PREFABS.length!==200)throw Error('Biblioteca de salas inconsistente');
  const available=new Map<RoomKind,RoomPrefab[]>();
- for(const prefab of candidates){
+ for(const prefab of blueprintCandidates){
    const list=available.get(prefab.kind)||[];list.push(prefab);available.set(prefab.kind,list);
  }
  rooms=nodes.map((node,i)=>{
