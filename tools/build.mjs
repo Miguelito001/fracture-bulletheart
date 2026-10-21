@@ -40,7 +40,7 @@ if (!fs.existsSync(compiled)) {
   process.exit(1);
 }
 fs.renameSync(compiled, path.join(outDir, 'game.js'));
-for (const file of ['index.html', 'style.css', 'cartoon_scene.js']) {
+for (const file of ['index.html', 'style.css', 'cartoon_scene.js', 'fracture_world.js']) {
   fs.copyFileSync(path.join(projectDir, file), path.join(outDir, file));
 }
 fs.cpSync(path.join(projectDir, 'assets'), path.join(outDir, 'assets'), { recursive: true, force: true });
