@@ -44,14 +44,14 @@ class Fracture {
   this.renderer=new THREE.WebGLRenderer({canvas:$('scene'),antialias:true,powerPreference:'high-performance'});
   this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));this.renderer.setSize(innerWidth,innerHeight);
   this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.83;
+  this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.92;
   this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#0d1422');this.scene.fog=new THREE.FogExp2(0x101a28,.009);
   this.camera=new THREE.OrthographicCamera(-16,16,9,-9,.1,360);
   this.camera.position.set(16,23,22);this.camera.lookAt(0,0,0);
   this.clock=new THREE.Clock();this.loader=new GLTFLoader();this.assets=new Map();this.assetBoxes=new Map();
   this.worldGroup=null;this.actorGroup=new THREE.Group();this.scene.add(this.actorGroup);
-  this.scene.add(new THREE.HemisphereLight(0xb8d8ff,0x222536,1.30));
-  this.sun=new THREE.DirectionalLight(0xffe5c1,1.65);this.sun.position.set(-15,28,18);
+  this.scene.add(new THREE.HemisphereLight(0xb8d8ff,0x222536,1.02));
+  this.sun=new THREE.DirectionalLight(0xffe2b9,1.9);this.sun.position.set(-15,28,18);
   this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);
   this.sun.shadow.camera.left=-75;this.sun.shadow.camera.right=75;this.sun.shadow.camera.top=75;this.sun.shadow.camera.bottom=-75;
   this.sun.shadow.bias=-.00035;this.scene.add(this.sun);this.lights=[];
@@ -85,7 +85,7 @@ class Fracture {
     try{let gltf=await this.loader.loadAsync(`/models/${name}.glb`);this.assets.set(name,gltf.scene);
      gltf.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;
        if(o.material){o.material=o.material.clone();
-        if(!name.includes('character-')&&o.material.color)o.material.color.multiplyScalar(.73);
+        if(!name.includes('character-')&&o.material.color)o.material.color.multiplyScalar(.84);
         o.material.roughness=.95;
        }
       }});
@@ -103,7 +103,7 @@ class Fracture {
  }
  resize(){
   this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.7));this.renderer.setSize(innerWidth,innerHeight);
-  const halfH=9.6,halfW=halfH*innerWidth/Math.max(1,innerHeight);
+  const halfH=8.0,halfW=halfH*innerWidth/Math.max(1,innerHeight);
   this.camera.left=-halfW;this.camera.right=halfW;this.camera.top=halfH;this.camera.bottom=-halfH;
   this.camera.updateProjectionMatrix();
  }
@@ -127,12 +127,25 @@ class Fracture {
   bbox=new THREE.Box3().setFromObject(clone);size=bbox.getSize(new THREE.Vector3());
   const center=bbox.getCenter(new THREE.Vector3());
   clone.position.x=x-center.x;clone.position.y=height-bbox.min.y;clone.position.z=z-center.z;
-  clone.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});if(name.startsWith('wall')){clone.userData.isWall=true;clone.userData.baseX=x;clone.userData.baseZ=z;}group.add(clone);
+  clone.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});if(name.startsWith('wall')||name.includes('crypt-door')||name.includes('metal-gate')){clone.userData.isWall=true;clone.userData.baseX=x;clone.userData.baseZ=z;}group.add(clone);
   if(physical){this.solid(x,Math.max(.2,clone.position.y+size.y/2),z,Math.max(.22,size.x/2*colliderScale),Math.max(.40,size.y/2),Math.max(.22,size.z/2*colliderScale));}
   return clone;
  }
  makeTerrain(worldRooms){
   const floorMaterial=mat(0x636e7b,{roughness:.93});
+  // Shared instanced flagstone seams make room geometry readable without adding
+  // invisible physics or more mesh draw calls per tile.
+  const seamMat=new THREE.MeshStandardMaterial({color:0x28313d,roughness:1,metalness:0,transparent:true,opacity:.58,depthWrite:false});
+  const seamGeometry=new THREE.BoxGeometry(TILE*.97,.014,.022);
+  const allSeams=new THREE.InstancedMesh(seamGeometry,seamMat,worldRooms.length*WIDTH*HEIGHT*2);
+  allSeams.count=0;allSeams.frustumCulled=false;
+  const mtx=new THREE.Matrix4();
+  const writeSeam=(x,z,vertical)=>{
+    mtx.makeRotationY(vertical?Math.PI/2:0);
+    mtx.setPosition(x,.033,z);
+    allSeams.setMatrixAt(allSeams.count++,mtx);
+  };
+  this.worldGroup.add(allSeams);
   for(const room of worldRooms){
    const {layout,index}=room,theme=PALETTE[layout.theme]||PALETTE.crypt;
    const ox=index*(WIDTH+5)*TILE;
@@ -145,6 +158,8 @@ class Fracture {
      const tile=this.meshModel(ch==='A'||ch==='B'||ch==='P'?'floor-detail':'floor',wx,wz,TILE*1.01);
      if(tile){tile.traverse(o=>{if(o.isMesh)o.receiveShadow=true;});}
      this.solid(wx,-.58,wz,TILE*.51,.49,TILE*.51);
+     if((x+z)%3!==0){writeSeam(wx,wz+TILE*.48,false);writeSeam(wx+TILE*.48,wz,true);}
+     if((x*11+z*7+index)%17===0){this.meshModel('stones',wx+.28,wz-.38,TILE*.31,{height:.05});}
      if(ch==='b'){this.meshModel(['ossuary','crypt'].includes(layout.theme)?'grave-coffin':'barrel',wx,wz,TILE*.77,{physical:true,colliderScale:.96});}
      if(ch==='c'){this.meshModel(['boss','chapel','ossuary'].includes(layout.theme)?'grave-column-large':'column',wx,wz,TILE*.79,{physical:true,colliderScale:.92});}
      if(ch==='t'){this.meshModel(layout.theme==='chapel'?'grave-altar-stone':'table',wx,wz,TILE*.85,{physical:true,colliderScale:.95});}
@@ -152,9 +167,9 @@ class Fracture {
      if(ch==='m'){this.meshModel('table',wx,wz,TILE*1.05,{physical:true});}
      if(ch==='a'){this.meshModel('grave-altar-stone',wx,wz,TILE*1.05,{physical:true});this.addLight(wx,wz,0xae84ea,4);}
      if(ch==='s'){this.meshModel('grave-altar-stone',wx,wz,TILE*.9,{physical:true});this.addLight(wx,wz,0xf5ce8e,3.2);}
-     if(ch==='P'){this.meshModel('grave-crypt-door',wx,wz,TILE*1.65,{height:0});this.addLight(wx,wz,theme.glow,7);}
+     if(ch==='P'){this.meshModel('grave-crypt-door',wx,wz,TILE*1.26,{height:0});this.addLight(wx,wz,theme.glow,7);}
      if(ch==='B'){this.meshModel('castle-metal-gate',wx,wz,TILE*1.44,{height:0});this.addLight(wx,wz,theme.glow,7);}
-     if(ch==='A'){this.addLight(wx,wz,theme.glow,4.2);}
+     if(ch==='A'){this.addLight(wx,wz,theme.glow,4.2);this.meshModel('grave-fire-basket',wx+.5,wz-1.0,TILE*.43,{height:0});}
     }else{
      // Existing 3D wall models and matching Rapier wall colliders.
      const wall=this.meshModel(['boss','ossuary','chapel'].includes(layout.theme)?'grave-stone-wall-damaged':(z<=2||z>=10)?'wall':'wall-half',wx,wz,TILE*1.05,{physical:true,colliderScale:.99});
@@ -168,6 +183,7 @@ class Fracture {
    if(index%2===0)this.addLight(ox+3*TILE,3*TILE,theme.glow,3.5);
    this.addLight(ox+(WIDTH-4)*TILE,9*TILE,theme.glow,2.8);
   }
+  allSeams.instanceMatrix.needsUpdate=true;
   if(worldRooms.length>1)for(let i=0;i<worldRooms.length-1;i++){
    const x0=worldX(i,WIDTH-1),x1=worldX(i+1,0);
    for(let x=x0+TILE;x<x1-.1;x+=TILE)for(let z=5;z<=7;z++){
@@ -194,8 +210,8 @@ class Fracture {
  }
  createHero(x,z){
   this.playerBody.setNextKinematicTranslation({x,y:1.05,z});this.physics.step();
-  const root=this.meshModel('character-human',x,z,2.35,{group:this.actorGroup});this.hero=root;
-  this.heroPivot=new THREE.Group();this.actorGroup.add(this.heroPivot);this.actorGroup.remove(root);this.heroPivot.add(root);root.position.set(0,0,0);
+  const root=this.meshModel('character-human',x,z,3.0,{group:this.actorGroup});this.hero=root;
+  this.heroPivot=new THREE.Group();this.actorGroup.add(this.heroPivot);this.actorGroup.remove(root);this.heroPivot.add(root);root.position.x=0;root.position.z=0;
   this.heroPivot.position.set(x,0,z);
   this.heroSword=this.meshModel('weapon-sword',.45,0,.85,{group:this.heroPivot});
   if(this.heroSword)this.heroSword.position.set(.66,.95,.0);
@@ -204,7 +220,7 @@ class Fracture {
   this.clearWorld();this.scene.fog.color.setHex(PALETTE.sanctuary.fog);
   this.rooms=[{layout:HUB,index:0,cleared:true,active:false,spawned:true,enemies:[]}];
   this.makeTerrain(this.rooms);
-  this.createHero(worldX(0,8),worldZ(7));this.roomIndex=0;
+  this.createHero(worldX(0,7),worldZ(7));this.roomIndex=0;
   this.testMarker.roomCount=1;this.hp=this.maxHp;this.potions=2;this.gameStarted=true;
   this.worldType='hub';this.setMode('hub');this.updateHUD();this.setObjective('CÂMARA ÂNCORA · E PARA INTERAGIR · PORTAL AO CENTRO');
  }
@@ -339,7 +355,7 @@ class Fracture {
   const enemyModel=room.layout.theme==='ossuary'||room.layout.theme==='chapel'?'grave-character-skeleton':room.layout.theme==='cistern'?'grave-character-ghost':'character-orc';
   const visual=this.meshModel(enemyModel,0,0,boss?3.35:knight?2.60:2.1,{group:this.actorGroup});
   if(!visual)return;
-  const root=new THREE.Group();this.actorGroup.remove(visual);this.actorGroup.add(root);root.add(visual);visual.position.set(0,0,0);
+  const root=new THREE.Group();this.actorGroup.remove(visual);this.actorGroup.add(root);root.add(visual);visual.position.x=0;visual.position.z=0;
   const body=this.physics.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(x,1.03,z));
   const collider=this.physics.createCollider(RAPIER.ColliderDesc.capsule(boss?.80:.48,boss?.59:.36),body);
   const controller=this.physics.createCharacterController(.06);controller.enableAutostep(.25,.08,true);
@@ -448,8 +464,8 @@ class Fracture {
    if(effect.time<=0){this.worldGroup.remove(effect.mesh);effect.mesh.geometry.dispose();effect.mesh.material.dispose();this.fx.splice(this.fx.indexOf(effect),1);}
    else{effect.mesh.scale.setScalar(1+(1-effect.time/effect.max)*1.2);effect.mesh.material.opacity=.64*(effect.time/effect.max);}
   }
-  const fwd=new THREE.Vector3(14.5,19.5,16.5);
-  const focus=new THREE.Vector3(p.x+this.aim.x*1.9,.7,p.z+this.aim.z*1.9);
+  const fwd=new THREE.Vector3(14,18.4,16);
+  const focus=new THREE.Vector3(p.x+this.aim.x*.85,.8,p.z+this.aim.z*.85);
   this.cameraTarget.lerp(focus,1-Math.exp(-dt*6));
   this.camera.position.lerp(this.cameraTarget.clone().add(fwd),1-Math.exp(-dt*5));this.camera.lookAt(this.cameraTarget);
   this.sun.position.set(p.x-13,23,p.z+17);this.sun.target.position.set(p.x,0,p.z);this.sun.target.updateMatrixWorld();
@@ -458,7 +474,7 @@ class Fracture {
   if(this.worldGroup){this.worldGroup.traverse(obj=>{
    if(!obj.userData.isWall)return;
    const dx=obj.userData.baseX-p.x,dz=obj.userData.baseZ-p.z;
-   const obscure=dx>0&&dz>0&&Math.hypot(dx,dz)<5;
+   const obscure=dx>0&&dz>0&&Math.hypot(dx,dz)<8.2;
    obj.traverse(child=>{if(child.isMesh){
     let m=child.material;
     if(!m.userData.isClonedForFade){m=m.clone();m.transparent=true;m.userData.isClonedForFade=true;child.material=m;}
