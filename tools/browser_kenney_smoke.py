@@ -29,6 +29,39 @@ try:
   assert citadel and citadel['architecture'] and citadel['tiles']==55,citadel
   page.wait_for_function("() => window.__fractureCitadel?.ready?.() === true", timeout=30000)
   print('FRACTURED CITADEL ACTIVE:',citadel,flush=True)
+
+  # Structural contract: exactly 200 frozen complete room layouts, with 4 valid doors.
+  prefab_check=page.evaluate("""() => {
+    const catalog=FRACTURE_ROOM_PREFABS;
+    const key=(x,y)=>x+','+y;
+    let allConnected=true,allDoors=true,allProps=true,allSpawns=true;
+    const footprints=new Set(),layouts=new Set();
+    for(const prefab of catalog){
+      const cells=new Set();
+      prefab.rows.forEach((row,y)=>[...row].forEach((c,x)=>{if(c==='.')cells.add(key(x-7,y-6));}));
+      const seen=new Set(['0,0']),queue=[[0,0]];
+      for(let i=0;i<queue.length;i++){
+        const [x,y]=queue[i];
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+          const p=key(x+dx,y+dy);
+          if(cells.has(p)&&!seen.has(p)){seen.add(p);queue.push([x+dx,y+dy]);}
+        }
+      }
+      if(seen.size!==cells.size)allConnected=false;
+      if(![[7,0],[-7,0],[0,6],[0,-6]].every(([x,y])=>cells.has(key(x,y))))allDoors=false;
+      if(!prefab.props.every(([x,y])=>cells.has(key(x,y))))allProps=false;
+      if(prefab.spawns.length<8||!prefab.spawns.every(([x,y])=>cells.has(key(x,y))))allSpawns=false;
+      footprints.add(prefab.rows.join('|'));
+      layouts.add(prefab.rows.join('|')+JSON.stringify(prefab.props));
+    }
+    return {count:catalog.length,ids:new Set(catalog.map(p=>p.id)).size,
+      footprints:footprints.size,layouts:layouts.size,
+      allConnected,allDoors,allProps,allSpawns};
+  }""")
+  assert prefab_check['count']==200 and prefab_check['ids']==200,prefab_check
+  assert prefab_check['layouts']>=190 and prefab_check['footprints']>=50,prefab_check
+  assert all(prefab_check[k] for k in ['allConnected','allDoors','allProps','allSpawns']),prefab_check
+  print('200 STATIC ROOM BLUEPRINTS VALIDATED:',prefab_check,flush=True)
   page.wait_for_timeout(400)
   page.screenshot(path=str(ROOT/'artpass-hub-smoke.png'))
   # Every visible station is a real interaction, not an unreachable painted menu.
@@ -117,12 +150,15 @@ try:
         return bits;
       })).size;
       const propsPhysical=sceneProps.every(p=>blocked.has(tile(p.x,p.y))&&!walkable(p.x,p.y,12));
+      const poolValid=selectedRoomPool.length===100 && new Set(selectedRoomPool).size===100;
+      const roomsUsePrefabs=rooms.every(room=>selectedRoomPool.includes(room.prefabId)&&FRACTURE_ROOM_PREFABS.some(p=>p.id===room.prefabId&&p.kind===room.kind));
+      const uniqueRooms=new Set(rooms.map(r=>r.prefabId)).size===rooms.length;
       results.push({rooms:rooms.length,walkable:seen.size,reachable,shapes:distinct,
-        props:sceneProps.length,propsPhysical});
+        props:sceneProps.length,propsPhysical,poolValid,roomsUsePrefabs,uniqueRooms});
     }
     return results;
   }""")
-  assert all(x['reachable'] and x['shapes']>=3 and x['props']>0 and x['propsPhysical'] for x in connectivity),connectivity
+  assert all(x['reachable'] and x['shapes']>=3 and x['props']>0 and x['propsPhysical'] and x['poolValid'] and x['roomsUsePrefabs'] and x['uniqueRooms'] for x in connectivity),connectivity
   print('PROCEDURAL GEOMETRY AND COLLISION OK:',connectivity,flush=True)
   page.wait_for_timeout(120)
   # Clicking visible HUD items actually changes equipped weapons.
@@ -160,16 +196,16 @@ try:
     const battle=rooms.find(r=>r.kind==='battle'&&r.active);
     if(!battle)return {exists:false};
     const next=rooms[battle.connections[0]];
-    const horizontal=Math.abs(next.cx-battle.cx)>Math.abs(next.cy-battle.cy);
-    const gx=horizontal?battle.cx+Math.sign(next.cx-battle.cx)*T*6.25:battle.cx;
-    const gy=horizontal?battle.cy:battle.cy+Math.sign(next.cy-battle.cy)*T*4.25;
+    const door=roomDoorGate(battle,next);
+    const gx=(door.a.x+door.b.x)/2,gy=(door.a.y+door.b.y)/2;
     const blocked=combatGateCollision(gx,gy,12);
     battle.active=false;
     const unblocked=!combatGateCollision(gx,gy,12);
     battle.active=true;
-    return {exists:true,blocked,unblocked};
+    const geometry=door.vertical?Math.abs(door.a.x-door.b.x)<1:Math.abs(door.a.y-door.b.y)<1;
+    return {exists:true,blocked,unblocked,geometry};
   }""")
-  assert gate['exists'] and gate['blocked'] and gate['unblocked'],gate
+  assert gate['exists'] and gate['blocked'] and gate['unblocked'] and gate['geometry'],gate
   print('VISIBLE COMBAT GATE PHYSICS OK:',gate,flush=True)
   page.screenshot(path=str(ROOT/'artpass-combat-smoke.png'))
   assert not errors,'JS errors: '+str(errors)
