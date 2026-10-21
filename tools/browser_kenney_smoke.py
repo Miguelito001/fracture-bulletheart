@@ -36,6 +36,28 @@ try:
     return hubStations.map(s=>({id:s.id,blocks:!walkable(s.x,s.y,15)}));
   }""")
   assert all(s['blocks'] for s in solid),'Missing station collisions: '+str(solid)
+  navigation=page.evaluate("""() => {
+    const start=tile(px,py),seen=new Set([start]),q=[start];
+    const walk=(tx,ty)=>walkable((tx+.5)*T,(ty+.5)*T,12);
+    for(let i=0;i<q.length;i++){
+      const [x,y]=q[i].split(',').map(Number);
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=x+dx,ny=y+dy,key=tileKey(nx,ny);
+        if(!seen.has(key)&&walk(nx,ny)){seen.add(key);q.push(key);}
+      }
+    }
+    return hubStations.map(s=>({
+      station:s.id,
+      reachable:[...seen].some(key=>{
+        const [x,y]=key.split(',').map(Number);
+        return Math.hypot((x+.5)*T-s.x,(y+.5)*T-s.y)<135;
+      })
+    }));
+  }""")
+  assert all(p['reachable'] for p in navigation),'Inaccessible station by real walking: '+str(navigation)
+  print('HUB NAVIGATION REACHABLE:',navigation,flush=True)
+  architectural=page.evaluate("() => structuralColliders.length>0 && structuralColliders.every(p=>structureCollision(p.x,p.y,3))")
+  assert architectural,'Arch columns are not physical obstacles'
   for station in ['forge','merchant','vault','archive','altar']:
    page.evaluate("(id) => {const s=hubStations.find(q=>q.id===id);px=s.x+115;py=s.y;}",station)
    page.keyboard.press('e')
