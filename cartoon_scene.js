@@ -217,7 +217,7 @@
     }
   }
   function toonForge(x,y) {
-    voxel("14",x-93,y+22,.75,1);
+
     const p=isoPoint(x,y);
     /* furnace with cast iron mouth and orange animated light */
     rounded(p.x-75,p.y-141,100,112,14,"#4b4b5e","#c9a16c");
@@ -227,14 +227,14 @@
     isoGlow(x-50,y-28,175,"#ff7d3044");
     floorDecor(x-115,y+125,"moss");
     /* anvil */
-    voxel("09",x+30,y+75,.6,4);
+
     poly([[p.x+25,p.y-44],[p.x+88,p.y-44],[p.x+77,p.y-32],[p.x+15,p.y-32]],"#9cc2cb","#24354b",3);
     for(let i=0;i<4;i++){const a=globalTime*2+i*1.63;ell(p.x-27+Math.sin(a)*40,p.y-87-Math.cos(a)*29,3,5,"#ffd585");}
-    isoText("FORJA",p.x,p.y-158,15,"#ffd6a1");
+
   }
   function toonMerchant(x,y) {
     const p=isoPoint(x,y);
-    voxel("14",x-66,y+54,.64,0);voxel("14",x+77,y+60,.65,0);
+
     rounded(p.x-78,p.y-97,7,85,2,"#69483c");rounded(p.x+80,p.y-97,7,85,2,"#69483c");
     poly([[p.x-98,p.y-107],[p.x-43,p.y-136],[p.x+46,p.y-136],[p.x+104,p.y-107],[p.x+74,p.y-75],[p.x-74,p.y-75]],"#b64c59","#35263c",3);
     for(let i=-1;i<=1;i++)poly([[p.x+i*51-24,p.y-111],[p.x+i*51+13,p.y-133],[p.x+i*51+37,p.y-103],[p.x+i*51+12,p.y-78]],i===0?"#f1b674":"#d66864");
@@ -242,11 +242,11 @@
     for(let i=0;i<6;i++)ell(p.x-48+i*21,p.y-35-((i*7)%15),7,6,i%2?"#e4c16e":"#72d4be");
     toonHero(p.x+5,p.y-34,.66,"npc",1);
     floorDecor(x+120,y+78,"moss");
-    isoText("MERCADOR",p.x,p.y-155,14,"#ffddb4");
+
   }
   function toonArchive(x,y) {
     const p=isoPoint(x,y);
-    voxel("14",x-64,y+35,.85,2);voxel("14",x+53,y+35,.85,2);
+
     for(let i=0;i<2;i++){
       const px0=p.x+(i===0?-82:4);
       rounded(px0,p.y-147,76,120,5,"#65473f","#ca9a6b");
@@ -257,7 +257,7 @@
     }
     isoGem(x+70,y-35,"#9bbdff",86);
     floorDecor(x-85,y+100,"crystals");
-    isoText("ARQUIVO",p.x,p.y-166,14,"#d6cdff");
+
   }
   function toonVault(x,y) {
     const p=isoPoint(x,y);
@@ -265,13 +265,13 @@
     rounded(p.x-54,p.y-121,108,93,11,"#425569","#c59e6b");
     rounded(p.x-40,p.y-112,80,73,9,"#233646","#a9b5be");
     ell(p.x,p.y-78,17,18,"#d9b26a");ell(p.x,p.y-78,9,10,"#485765");
-    voxel("14",x-65,y+82,.6,0);voxel("14",x+65,y+82,.6,0);
+
     floorDecor(x+110,y+100,"moss");
-    isoText("COFRE",p.x,p.y-157,14,"#b8f7dc");
+
   }
   function toonAltar(x,y) {
     altarBase(x,y+20,"#553858",78);isoGem(x,y,"#dda8fb",109);
-    const p=isoPoint(x,y);isoText("ALTAR DE PREPARAÇÃO",p.x,p.y-150,13,"#f2cfe7");
+    const p=isoPoint(x,y);
     for(let i=0;i<4;i++){const a=i*Math.PI/2+globalTime*.2;ell(p.x+Math.cos(a)*62,p.y-8+Math.sin(a)*30,3,3,"#ebbbff");}
   }
   isoStation=function(id,x,y) {
@@ -297,10 +297,10 @@
     else if(r.kind==="heal"){altarBase(r.cx,r.cy,"#2d5e63",82);isoGem(r.cx,r.cy,"#70ebcc",75);}
     else if(r.kind==="battle"){
       const n=hash(r.gx,r.gy);
-      if(n%2===0){voxel("14",r.cx+170,r.cy-100,.74,0);voxel("14",r.cx+230,r.cy-90,.59,0);}
-      if(n%3===0)isoTorch(r.cx-212,r.cy-128);
-      if(n%5===0)floorDecor(r.cx-142,r.cy+99,"crystals");
-      if(n%7===0)floorDecor(r.cx+82,r.cy+123,"moss");
+  
+  
+  
+  
     }
     if(r.active){const n=r.connections||[];for(const id of n){const next=rooms[id],a=Math.atan2(next.cy-r.cy,next.cx-r.cx),v=vec(a,T*7.3),q=isoPoint(r.cx+v.x,r.cy+v.y);
       g.strokeStyle="#ee737f";g.lineWidth=7;g.beginPath();g.moveTo(q.x-12,q.y-6);g.lineTo(q.x+12,q.y+6);g.stroke();}}
