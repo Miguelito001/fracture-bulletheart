@@ -106,18 +106,28 @@ function structureCollision(x:number,y:number,r=0){
  return structuralColliders.some(p=>Math.hypot(p.x-x,p.y-y)<p.r+r);
 }
 
+// Doorway coordinates are derived from the same 3-wide prefab sockets that
+// corridor stamping uses, with no heuristic rectangle or arbitrary offsets.
+function roomDoorGate(room:Room,next:Room){
+ const eastWest=Math.abs(next.cx-room.cx)>Math.abs(next.cy-room.cy);
+ const vertical=eastWest;
+ const a=vertical
+   ? {x:room.cx+(next.cx>room.cx?7:-6)*T,y:room.cy-T}
+   : {x:room.cx-T,y:room.cy+(next.cy>room.cy?6:-5)*T};
+ const b=vertical
+   ? {x:a.x,y:room.cy+2*T}
+   : {x:room.cx+2*T,y:a.y};
+ return {a,b,vertical};
+}
 function combatGateCollision(x:number,y:number,r=0){
  if(!current?.active)return false;
- for(const to of current.connections){
-  const next=rooms[to];if(!next)continue;
-  const eastWest=Math.abs(next.cx-current.cx)>Math.abs(next.cy-current.cy);
-  if(eastWest){
-   const gx=current.cx+(next.cx>current.cx?1:-1)*T*6.25;
-   if(Math.abs(x-gx)<21+r&&Math.abs(y-current.cy)<T*2.28+r)return true;
-  }else{
-   const gy=current.cy+(next.cy>current.cy?1:-1)*T*4.25;
-   if(Math.abs(y-gy)<21+r&&Math.abs(x-current.cx)<T*2.28+r)return true;
-  }
+ for(const id of current.connections){
+  const other=rooms[id];if(!other)continue;
+  const door=roomDoorGate(current,other);
+  const lengthX=door.b.x-door.a.x,lengthY=door.b.y-door.a.y;
+  const t=clamp(((x-door.a.x)*lengthX+(y-door.a.y)*lengthY)/Math.max(1,lengthX*lengthX+lengthY*lengthY),0,1);
+  const closestX=door.a.x+lengthX*t,closestY=door.a.y+lengthY*t;
+  if(Math.hypot(x-closestX,y-closestY)<14+r)return true;
  }
  return false;
 }
