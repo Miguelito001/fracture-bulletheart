@@ -6,8 +6,11 @@ This branch replaces the ad-hoc Canvas 2D isometric renderer with mature, indepe
 - Rapier JS (Apache-2.0): actual collision solver and kinematic character controller (including walls and props). https://github.com/dimforge/rapier
 - EasyStar.js (MIT): grid-based A* pathfinding for room encounters. https://github.com/prettymuchbryce/easystarjs
 - Vite (MIT): production bundling and local development. https://vite.dev/
-- Kenney Mini Dungeon, Graveyard Kit and Castle Kit (CC0 1.0): environment models, props, player/orc, gear. Original creator https://kenney.nl/; packaged as standalone .glb by https://github.com/Hidencod/tge-assets (also CC0), source commit `4920991271cb3079006478ff77b851e1d04342b3`. 47 GLB models acquired reproducibly at build via `scripts/get-cc0-models.mjs`.
+- Kenney Mini Dungeon, Graveyard Kit and Castle Kit (CC0 1.0): environment models, props, player/orc, gear. Original creator https://kenney.nl/; packaged as standalone .glb by https://github.com/Hidencod/tge-assets (also CC0), source commit `4920991271cb3079006478ff77b851e1d04342b3`. 47 Kenney GLB models acquired reproducibly at build via `scripts/get-cc0-models.mjs`.
 
 No Microsoft/Minecraft game files or proprietary assets are included. Imported .glb models are public-domain. Dependencies and licenses are retained in their npm packages.
 
 The `fracture_bulletheart_v1` save is **read**, not overwritten. This vertical slice migrates echoes, extractions, runs and unlocks. Per-run saves and full endgame systems are not claimed to be migrated yet.
+- KayKit Adventurers 1.0 (Knight, Hooded Rogue), CC0: https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 at `672074b73ba276876a19e8816ecdc5241817ab47`.
+- KayKit Skeletons 1.0 (Skeleton Warrior), CC0: https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0 at `15b62b9bad122f72926c10fb14d622c73819fa54`.
+These public fully rigged GLBs contain real authored clips activated by Three.js AnimationMixer.

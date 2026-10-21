@@ -18,12 +18,16 @@ const OTHER = {
 const output = new URL('../public/models/', import.meta.url);
 const sourced = [...MODELS.map(name=>({file:name,model:name,pack:'mini-dungeon'})),
  ...OTHER.graveyard.map(name=>({file:`grave-${name}`,model:name,pack:'graveyard-kit'})),
- ...OTHER.castle.map(name=>({file:`castle-${name}`,model:name,pack:'castle-kit'}))];
+ ...OTHER.castle.map(name=>({file:`castle-${name}`,model:name,pack:'castle-kit'})),
+ {file:'kay-knight',repo:'KayKit-Character-Pack-Adventures-1.0',commit:'672074b73ba276876a19e8816ecdc5241817ab47',folder:'addons/kaykit_character_pack_adventures/Characters/gltf',model:'Knight'},
+ {file:'kay-rogue',repo:'KayKit-Character-Pack-Adventures-1.0',commit:'672074b73ba276876a19e8816ecdc5241817ab47',folder:'addons/kaykit_character_pack_adventures/Characters/gltf',model:'Rogue_Hooded'},
+ {file:'kay-skeleton',repo:'KayKit-Character-Pack-Skeletons-1.0',commit:'15b62b9bad122f72926c10fb14d622c73819fa54',folder:'addons/kaykit_character_pack_skeletons/Characters/gltf',model:'Skeleton_Warrior'}
+];
 await mkdir(output,{recursive:true});
-for (const {file:name,model,pack} of sourced) {
+for (const {file:name,model,pack,repo,commit,folder} of sourced) {
   const file = new URL(`${name}.glb`,output);
   try { const info=await stat(file); if(info.size>10_000) continue; } catch {}
-  const url=`https://raw.githubusercontent.com/Hidencod/tge-assets/${COMMIT}/packs/${pack}/${model}.glb`;
+  const url=repo?`https://raw.githubusercontent.com/KayKit-Game-Assets/${repo}/${commit}/${folder}/${model}.glb`:`https://raw.githubusercontent.com/Hidencod/tge-assets/${COMMIT}/packs/${pack}/${model}.glb`;
   let ok=false;
   for(let retry=0;retry<3&&!ok;retry++){
     try {

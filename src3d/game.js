@@ -1,6 +1,7 @@
 import './style.css';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import RAPIER from '@dimforge/rapier3d-compat';
 import EasyStar from 'easystarjs';
 import { HUB, ROOMS, WIDTH, HEIGHT, TILE, chooseExpedition, validateBlueprint, worldX, worldZ } from './rooms.js';
@@ -30,7 +31,8 @@ const MODELS=['banner','barrel','chair','character-human','character-orc','chest
  'grave-coffin','grave-column-large','grave-crypt-door','grave-fire-basket',
  'grave-gravestone-round','grave-lightpost-single','grave-urn-round',
  'grave-debris','grave-stone-wall-damaged','grave-pillar-square','grave-detail-chalice',
- 'castle-flag-banner-long','castle-wall-pillar','castle-metal-gate','castle-rocks-small'];
+ 'castle-flag-banner-long','castle-wall-pillar','castle-metal-gate','castle-rocks-small',
+ 'kay-knight','kay-rogue','kay-skeleton'];
 const KEY_TO_SAVE='fracture_bulletheart_3d_v1';
 function loadProgress(){
  try { const state=JSON.parse(localStorage.getItem(SAVE_KEY));if(state&&typeof state==='object')return {...DEFAULT,...state,inventory:{...DEFAULT.inventory,...state.inventory}}; }catch{}
@@ -48,7 +50,7 @@ class Fracture {
   this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#0d1422');this.scene.fog=new THREE.FogExp2(0x101a28,.009);
   this.camera=new THREE.OrthographicCamera(-16,16,9,-9,.1,360);
   this.camera.position.set(16,23,22);this.camera.lookAt(0,0,0);
-  this.clock=new THREE.Clock();this.loader=new GLTFLoader();this.assets=new Map();this.assetBoxes=new Map();
+  this.clock=new THREE.Clock();this.loader=new GLTFLoader();this.assets=new Map();this.assetBoxes=new Map();this.animationClips=new Map();this.heroMixer=null;this.heroAnimations={};
   this.worldGroup=null;this.actorGroup=new THREE.Group();this.scene.add(this.actorGroup);
   this.scene.add(new THREE.HemisphereLight(0xb8d8ff,0x222536,1.02));
   this.sun=new THREE.DirectionalLight(0xffe2b9,1.9);this.sun.position.set(-15,28,18);
@@ -82,16 +84,16 @@ class Fracture {
    await RAPIER.init();this.RAPIER=RAPIER;
    const failures=[];
    await Promise.all(MODELS.map(async name=>{
-    try{let gltf=await this.loader.loadAsync(`/models/${name}.glb`);this.assets.set(name,gltf.scene);
+    try{let gltf=await this.loader.loadAsync(`/models/${name}.glb`);this.assets.set(name,gltf.scene);this.animationClips.set(name,gltf.animations||[]);
      gltf.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;
        if(o.material){o.material=o.material.clone();
-        if(!name.includes('character-')&&o.material.color)o.material.color.multiplyScalar(.84);
+        if(!name.includes('character-')&&!name.startsWith('kay-')&&o.material.color)o.material.color.multiplyScalar(.84);
         o.material.roughness=.95;
        }
       }});
     }catch(e){failures.push(name);console.error('Asset',name,e);}
    }));
-   const essential=['floor','wall','character-human','character-orc','chest','column','barrel','gate'];
+   const essential=['floor','wall','kay-knight','kay-skeleton','chest','column','barrel','gate'];
    if(essential.some(n=>!this.assets.has(n)))throw Error('Recursos 3D essenciais não carregaram: '+failures.join(', '));
    this.testMarker.assets=this.assets.size;
    this.gameStarted=true;
@@ -121,7 +123,7 @@ class Fracture {
  }
  meshModel(name,x,z,span=2.0,{height=0,physical=false,colliderScale=.82,rotation=0,group=this.worldGroup}={}){
   const source=this.assets.get(name);if(!source)return null;
-  const clone=source.clone(true);clone.rotation.y=rotation;clone.updateMatrixWorld(true);
+  const clone=name.startsWith('kay-')?cloneSkinned(source):source.clone(true);clone.rotation.y=rotation;clone.updateMatrixWorld(true);
   let bbox=new THREE.Box3().setFromObject(clone),size=bbox.getSize(new THREE.Vector3());
   const factor=span/Math.max(.001,name.includes('character-')?size.y:Math.max(size.x,size.z));clone.scale.multiplyScalar(factor);clone.updateMatrixWorld(true);
   bbox=new THREE.Box3().setFromObject(clone);size=bbox.getSize(new THREE.Vector3());
@@ -204,17 +206,19 @@ class Fracture {
   if(this.worldGroup){this.scene.remove(this.worldGroup);this.worldGroup.traverse(o=>{if(o.geometry&&!this.assets.has(o.userData.assetId)){
     // Imported geometries stay cached, so avoid disposing shared glTF geometry.
    }});}
-  if(this.actorGroup){this.scene.remove(this.actorGroup);}this.actorGroup=new THREE.Group();this.scene.add(this.actorGroup);
+  if(this.actorGroup){this.scene.remove(this.actorGroup);}this.actorGroup=new THREE.Group();this.scene.add(this.actorGroup);this.heroMixer=null;this.heroAnimations={};
   this.worldGroup=new THREE.Group();this.scene.add(this.worldGroup);this.lights=[];this.gates=[];this.drops=[];this.enemyUnits=[];this.statueActors=[];
   this.setupPhysics();
  }
  createHero(x,z){
   this.playerBody.setNextKinematicTranslation({x,y:1.05,z});this.physics.step();
-  const root=this.meshModel('character-human',x,z,3.0,{group:this.actorGroup});this.hero=root;
+  const root=this.meshModel('kay-knight',x,z,2.72,{group:this.actorGroup});this.hero=root;
   this.heroPivot=new THREE.Group();this.actorGroup.add(this.heroPivot);this.actorGroup.remove(root);this.heroPivot.add(root);root.position.x=0;root.position.z=0;
   this.heroPivot.position.set(x,0,z);
-  this.heroSword=this.meshModel('weapon-sword',.45,0,.85,{group:this.heroPivot});
-  if(this.heroSword)this.heroSword.position.set(.66,.95,.0);
+  const setup=this.configureAnimations(root,'kay-knight');this.heroMixer=setup.mixer;this.heroAnimations=setup.actions;this.heroAnimationState='idle';
+  const hand=(()=>{let bone=null;root.traverse(o=>{if(/handslot[._]?r|hand[._]?r/i.test(o.name))bone ||= o;});return bone;})();
+  this.heroSword=hand?this.meshModel('weapon-sword',0,0,.72,{group:hand}):null;
+  if(this.heroSword){this.heroSword.position.set(.12,.05,0);this.heroSword.rotation.set(Math.PI/2,0,0);}
  }
  openHub(){
   this.clearWorld();this.scene.fog.color.setHex(PALETTE.sanctuary.fog);
@@ -314,7 +318,7 @@ class Fracture {
   }
   if(gun&&nearest)this.hitEnemy(nearest,15);
   this.pulse(p.x+dir.x*2.4,p.z+dir.z*2.4,gun?0x7bdff7:0xffdd96,gun?.24:.50);
-  if(this.heroSword){this.heroSword.rotation.y+=1.8;this.heroSword.rotation.z+=.85;}
+  this.playMotion(this.heroAnimations,this.heroAnimationState,'attack');this.heroAnimationState='attack';
   this.updateHUD();
  }
  lineOfSight(ax,az,bx,bz){
@@ -340,7 +344,7 @@ class Fracture {
   this.killCount++;this.xp+=e.kind==='warden'?190:e.kind==='knight'?27:16;
   if(this.xp>=this.level*76){this.xp-=this.level*76;this.level++;this.maxHp+=8;this.hp=Math.min(this.maxHp,this.hp+20);this.notice(`NÍVEL ${this.level} · Vitalidade +8`);}
   this.materials.iron+=1;if(e.kind==='warden'||e.kind==='knight')this.materials.embers++;
-  if(e.visual){this.actorGroup.remove(e.visual);}this.physics.removeRigidBody(e.body);
+  if(e.visual){this.actorGroup.remove(e.visual);}if(e.mixer)e.mixer.stopAllAction();this.physics.removeRigidBody(e.body);
   this.enemyUnits=this.enemyUnits.filter(u=>u!==e);
   const room=this.rooms[e.room];if(room&&!this.enemyUnits.some(u=>u.room===room.index)){
    room.cleared=true;room.active=false;this.removeGates();
@@ -352,7 +356,7 @@ class Fracture {
  spawnEnemy(room,col,row,kind='orc'){
   const x=worldX(room.index,col),z=worldZ(row);
   const boss=kind==='warden',knight=kind==='knight';
-  const enemyModel=room.layout.theme==='ossuary'||room.layout.theme==='chapel'?'grave-character-skeleton':room.layout.theme==='cistern'?'grave-character-ghost':'character-orc';
+  const enemyModel=room.layout.theme==='cistern'?'grave-character-ghost':'kay-skeleton';
   const visual=this.meshModel(enemyModel,0,0,boss?3.35:knight?2.60:2.1,{group:this.actorGroup});
   if(!visual)return;
   const root=new THREE.Group();this.actorGroup.remove(visual);this.actorGroup.add(root);root.add(visual);visual.position.x=0;visual.position.z=0;
@@ -360,9 +364,28 @@ class Fracture {
   const collider=this.physics.createCollider(RAPIER.ColliderDesc.capsule(boss?.80:.48,boss?.59:.36),body);
   const controller=this.physics.createCharacterController(.06);controller.enableAutostep(.25,.08,true);
   root.position.set(x,0,z);
-  const enemy={x,z,visual:root,body,collider,controller,kind,room:room.index,hp:boss?520:knight?96:58,max:boss?520:knight?96:58,
+  const animated=this.configureAnimations(visual,enemyModel);
+  const enemy={x,z,visual:root,body,collider,controller,mixer:animated.mixer,actions:animated.actions,animationState:'idle',kind,room:room.index,hp:boss?520:knight?96:58,max:boss?520:knight?96:58,
     speed:boss?2.2:knight?3.0:3.3,cooldown:1+Math.random()*.6,windup:0,stagger:0,path:null,pathTimer:0};
   this.enemyUnits.push(enemy);room.enemies.push(enemy);
+ }
+ // Authored KayKit skeletal clips: idle, running, melee strike, hit and death.
+ configureAnimations(mesh,name){
+  const clips=this.animationClips.get(name)||[];
+  const mixer=new THREE.AnimationMixer(mesh),actions={};
+  const search={idle:/idle|standing/i,run:/run|walk/i,attack:/melee_attack|attack|slash|swing/i,hit:/hit|hurt|impact/i,death:/death|die/i};
+  for(const [id,pattern] of Object.entries(search)){
+   const clip=clips.find(c=>pattern.test(c.name));if(clip)actions[id]=mixer.clipAction(clip);
+  }
+  if(actions.idle)actions.idle.play();else if(clips[0])actions.idle=mixer.clipAction(clips[0]).play();
+  return {mixer,actions};
+ }
+ playMotion(actions,last,name){
+  const desired=actions?.[name]||actions?.idle;if(!desired)return;
+  const previous=actions?.[last];if(previous&&previous!==desired)previous.fadeOut(.13);
+  if(name==='attack'||name==='hit'){desired.setLoop(THREE.LoopOnce,1);desired.clampWhenFinished=true;}
+  else desired.setLoop(THREE.LoopRepeat,Infinity);
+  desired.reset().fadeIn(.13).play();
  }
  startCombat(room){if(room.spawned||room.cleared||room.index===0)return;
   room.spawned=true;room.active=true;this.roomIndex=room.index;
@@ -458,8 +481,16 @@ class Fracture {
   }
  }
  updateVisuals(dt){const p=this.playerBody.translation();
-  if(this.heroPivot){this.heroPivot.position.set(p.x,Math.abs(Math.sin(this.elapsed*11))*(this.isMoving?.06:0),p.z);}
-  for(const e of this.enemyUnits){const t=e.body.translation();e.x=t.x;e.z=t.z;e.visual.position.set(t.x,0,t.z);}
+  if(this.heroPivot){this.heroPivot.position.set(p.x,0,p.z);
+   const animation=this.attackCooldown>.14?'attack':this.dashTime>0?'run':this.isMoving?'run':'idle';
+   if(animation!==this.heroAnimationState){this.playMotion(this.heroAnimations,this.heroAnimationState,animation);this.heroAnimationState=animation;}
+   this.heroMixer?.update(dt);
+  }
+  for(const e of this.enemyUnits){const t=e.body.translation();e.x=t.x;e.z=t.z;e.visual.position.set(t.x,0,t.z);
+   const animation=e.stagger>0?'hit':e.windup>0?'attack':e.path?.length?'run':'idle';
+   if(animation!==e.animationState){this.playMotion(e.actions,e.animationState,animation);e.animationState=animation;}
+   e.mixer?.update(dt);
+  }
   for(const effect of [...this.fx]){effect.time-=dt;
    if(effect.time<=0){this.worldGroup.remove(effect.mesh);effect.mesh.geometry.dispose();effect.mesh.material.dispose();this.fx.splice(this.fx.indexOf(effect),1);}
    else{effect.mesh.scale.setScalar(1+(1-effect.time/effect.max)*1.2);effect.mesh.material.opacity=.64*(effect.time/effect.max);}
