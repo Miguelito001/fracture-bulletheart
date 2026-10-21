@@ -1,11 +1,14 @@
 // FRACTURE — BULLETHEART ISOV2.2: visual cohesion and Kenney CC0 asset corrections.
 // Player progress is saved locally. Kenney CC0 art is bundled locally; no CDN required.
 type XY = {x:number;y:number};
+// The authored prefab file loads before game.js; no runtime room-shape generation.
+type RoomPrefab={id:string;kind:RoomKind;family:number;rows:string[];props:[number,number,SceneProp['kind']][];spawns:[number,number][]};
+declare const FRACTURE_ROOM_PREFABS:ReadonlyArray<RoomPrefab>;
 type RoomKind = 'start'|'battle'|'elite'|'treasure'|'shrine'|'forge'|'heal'|'boss'|'secret';
 type MobKind = 'crawler'|'ranger'|'knight'|'bomber'|'wisp'|'elite'|'boss';
 type Weapon = 'sword'|'hammer'|'bow'|'gun'|'shotgun'|'staff'|'chakram';
 type ClassId = 'wanderer'|'bulwark'|'arcanist';
-type Room = {id:number; gx:number;gy:number;cx:number;cy:number;kind:RoomKind;shape:number;seen:boolean;cleared:boolean;active:boolean; connections:number[];prop:XY[]; enemiesLeft:number; title:string; collected:boolean};
+type Room = {prefabId?:string;id:number; gx:number;gy:number;cx:number;cy:number;kind:RoomKind;shape:number;seen:boolean;cleared:boolean;active:boolean; connections:number[];prop:XY[]; enemiesLeft:number; title:string; collected:boolean};
 type Mob = XY & {id:number;kind:MobKind;hp:number;max:number;radius:number;speed:number;attack:number;cd:number;windup:number;ang:number;room:number;stun:number;phase:number;shield:number;anchors:XY[];dead:boolean;champion:boolean};
 type Shot = XY & {vx:number;vy:number;r:number;damage:number;life:number;enemy:boolean;kind:string;pierce:number;hit:Set<number>;returning?:boolean};
 type Loot = XY & {kind:'xp'|'coin'|'heart'|'chest'|'artifact'|'material';amount:number;label:string;room:number;materialId?:string};
@@ -95,20 +98,7 @@ function refreshStructuralColliders(){
     }
   }
  }else{
-  for(const room of rooms){
-    const x=room.cx,y=room.cy;
-    if(room.kind==='boss'){
-      for(let i=0;i<4;i++){
-        const a=i*Math.PI/2+Math.PI/4;
-        add(x+Math.cos(a)*245,y+Math.sin(a)*245,26);
-      }
-    }else if(room.kind==='elite'){
-      add(x-220,y-145,27);add(x+220,y+145,27);
-    }else if(room.kind==='battle'){
-      const seed=(Math.imul(room.gx+503,73856093)^Math.imul(room.gy+701,19349663)^Math.imul((run.floor||1)+911,83492791))>>>0;
-      if(seed%3===2){add(x-204,y-148,25);add(x+210,y+143,25);}
-    }
-  }
+  // Dungeon structure uses immutable blueprint geometry and sceneProps only.
  }
  structuralColliders=pillars;
 }
@@ -233,77 +223,68 @@ function generateFloor(){world=new Set();blocked=new Set();rooms=[];mobs=[];shot
  if(Math.random()<.22)place('shrine');
  if(Math.random()<.15)place('heal');
  if(Math.random()<.12)place('secret');
- rooms=nodes.map((p,i)=>({id:i,gx:p.x,gy:p.y,cx:(p.x*19+12)*T,cy:(p.y*15+10)*T,kind:rKinds[i],shape:int(0,5),seen:false,cleared:i===0,active:false,connections:adj[i],prop:[],enemiesLeft:0,title:roomNames[rKinds[i]],collected:false}));
- sceneProps=[];
- const carve=(x:number,y:number)=>world.add(tileKey(x,y));
- // Dungeon rooms have distinct footprints: chapel, vault, octagon, cross,
- // collapsed hall and flanked fortress. None is a rectangular tile box.
- const insideRoom=(r:Room,dx:number,dy:number)=>{
-   const ax=Math.abs(dx),ay=Math.abs(dy);
-   if(ax<=2&&ay<=2)return true; // Safe gameplay core and boss arena.
-   if(r.kind==='boss')return ax<=7&&ay<=5&&ax*.72+ay<=9.2;
-   if(r.kind==='start')return (ax<=5&&ay<=5&&ax*.65+ay<=7.6)||(ax<=3&&ay<=6);
-   if(r.kind==='treasure'||r.kind==='secret')return (ax<=4&&ay<=4&&ax*.65+ay<=5.8)||(ax<=2&&ay<=6);
-   if(r.kind==='elite')return ax<=7&&ay<=5&&((ax<=5&&ay<=4)||(ax<=3&&ay<=5)||(ax<=7&&ay<=2));
-   if(r.kind==='forge')return ax<=6&&ay<=5&&((ax<=4&&ay<=5)||(ax<=6&&ay<=3));
-   if(r.shape===0)return (ax<=4&&ay<=5)||(ax<=7&&ay<=2);
-   if(r.shape===1)return ax<=7&&ay<=5&&ax*.68+ay<=8.1;
-   if(r.shape===2)return ax<=6&&ay<=4&&(ax<=3||ay<=2||dx*dy<3);
-   if(r.shape===3)return (ax<=6&&ay<=3)||(ax<=3&&ay<=5);
-   if(r.shape===4)return ax<=7&&ay<=4&&ax*.7+ay<=7.4;
-   return (ax<=5&&ay<=5)||(ax<=7&&ay<=2);
- };
- for(const room of rooms){
-  const cx=Math.floor(room.cx/T),cy=Math.floor(room.cy/T);
-  for(let dx=-7;dx<=7;dx++)for(let dy=-6;dy<=6;dy++)if(insideRoom(room,dx,dy))carve(cx+dx,cy+dy);
+ // A complete, frozen library of 200 templates. Randomness chooses 100 eligible
+ // presets each expedition, then selects distinct matching rooms from that pool.
+ const quotas:Record<RoomKind,number>={start:6,battle:55,elite:10,boss:6,treasure:6,shrine:5,forge:5,heal:4,secret:3};
+ const candidates:RoomPrefab[]=[];
+ for(const kind of Object.keys(quotas) as RoomKind[]){
+   const matching=FRACTURE_ROOM_PREFABS.filter(p=>p.kind===kind);
+   // Fisher-Yates selects different pre-existing rooms rather than building new shapes.
+   const shuffled=[...matching];
+   for(let i=shuffled.length-1;i>0;i--){const j=int(0,i);[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
+   candidates.push(...shuffled.slice(0,quotas[kind]));
  }
- // A narrow path with angled shoulders, a real threshold and occasional side
- // alcoves. The same cells define rendering AND movement collision.
- const carveStrip=(x1:number,y1:number,x2:number,y2:number,w=1)=>{
-   const count=Math.max(Math.abs(x2-x1),Math.abs(y2-y1));
-   for(let i=0;i<=count;i++){
-     const tx=Math.round(x1+(x2-x1)*i/Math.max(1,count));
-     const ty=Math.round(y1+(y2-y1)*i/Math.max(1,count));
-     for(let u=-w;u<=w;u++)for(let v=-w;v<=w;v++)if(Math.abs(u)+Math.abs(v)<=w+1)carve(tx+u,ty+v);
+ if(candidates.length!==100||FRACTURE_ROOM_PREFABS.length!==200)throw Error('Biblioteca de salas inconsistente');
+ const available=new Map<RoomKind,RoomPrefab[]>();
+ for(const prefab of candidates){
+   const list=available.get(prefab.kind)||[];list.push(prefab);available.set(prefab.kind,list);
+ }
+ rooms=nodes.map((node,i)=>{
+  const kind=rKinds[i],choices=available.get(kind)||[];
+  if(!choices.length)throw Error('Nenhuma sala pré-definida disponível: '+kind);
+  const prefab=choices.splice(int(0,choices.length-1),1)[0];
+  return {id:i,gx:node.x,gy:node.y,cx:(node.x*19+12)*T,cy:(node.y*15+10)*T,
+    kind,shape:prefab.family,prefabId:prefab.id,seen:false,cleared:i===0,active:false,
+    connections:adj[i],prop:[],enemiesLeft:0,title:roomNames[kind],collected:false};
+ });
+ sceneProps=[];
+ // Stamp exactly the saved template cells. Rotations, holes, props and entrances
+ // are pre-computed, not random. Solid entities share the same coordinates.
+ for(const room of rooms){
+  const prefab=FRACTURE_ROOM_PREFABS.find(p=>p.id===room.prefabId)!;
+  const cx=Math.floor(room.cx/T),cy=Math.floor(room.cy/T);
+  prefab.rows.forEach((row,y)=>{for(let x=0;x<row.length;x++){
+    if(row[x]==='.')world.add(tileKey(cx+x-7,cy+y-6));
+  }});
+ }
+ // Each prefab has north/south/east/west 3-tile door sockets. Stitch only the
+ // connections present in the connected expedition graph.
+ const corridor=(ax:number,ay:number,bx:number,by:number)=>{
+   const length=Math.max(Math.abs(bx-ax),Math.abs(by-ay));
+   for(let k=0;k<=length;k++){
+     const x=Math.round(ax+(bx-ax)*k/Math.max(1,length));
+     const y=Math.round(ay+(by-ay)*k/Math.max(1,length));
+     if(ax===bx){for(let t=-1;t<=1;t++)world.add(tileKey(x+t,y));}
+     else{for(let t=-1;t<=1;t++)world.add(tileKey(x,y+t));}
    }
  };
  for(const [ai,bi] of edges){
-  const a=rooms[ai],b=rooms[bi],x1=Math.floor(a.cx/T),x2=Math.floor(b.cx/T),y1=Math.floor(a.cy/T),y2=Math.floor(b.cy/T);
-  if(y1===y2){
-    const dir=Math.sign(x2-x1),off=pick([-2,-1,1,2]),mid=Math.round((x1+x2)/2);
-    carveStrip(x1,y1,mid-dir*3,y1,1);
-    carveStrip(mid-dir*3,y1,mid,y1+off,1);
-    carveStrip(mid,y1+off,mid+dir*3,y1+off,1);
-    carveStrip(mid+dir*3,y1+off,x2,y2,1);
-    const bayX=mid,bayY=y1+off+(ai%2?3:-3);
-    for(let yy=bayY-1;yy<=bayY+1;yy++)carve(bayX,yy);
+  const a=rooms[ai],b=rooms[bi],ax=Math.floor(a.cx/T),ay=Math.floor(a.cy/T),bx=Math.floor(b.cx/T),by=Math.floor(b.cy/T);
+  if(ay===by){
+   const d=Math.sign(bx-ax);corridor(ax+d*7,ay,bx-d*7,by);
   }else{
-    const dir=Math.sign(y2-y1),off=pick([-2,-1,1,2]),mid=Math.round((y1+y2)/2);
-    carveStrip(x1,y1,x1,mid-dir*3,1);
-    carveStrip(x1,mid-dir*3,x1+off,mid,1);
-    carveStrip(x1+off,mid,x1+off,mid+dir*3,1);
-    carveStrip(x1+off,mid+dir*3,x2,y2,1);
-    const bayX=x1+off+(bi%2?3:-3),bayY=mid;
-    for(let xx=bayX-1;xx<=bayX+1;xx++)carve(xx,bayY);
+   const d=Math.sign(by-ay);corridor(ax,ay+d*6,bx,by-d*6);
   }
  }
- // Author actual props, not non-colliding decorations. Central combat zones
- // and navigation lanes remain clear; props sit against room side walls.
+ // No props are scattered by a random function. All come from the selected
+ // room's fixed authoring data and are collision-registered before spawning.
  for(const room of rooms){
+  const prefab=FRACTURE_ROOM_PREFABS.find(p=>p.id===room.prefabId)!;
   const cx=Math.floor(room.cx/T),cy=Math.floor(room.cy/T);
-  if(room.kind==='start')continue;
-  const presets=room.kind==='boss'?[[6,3,'pillar'],[-6,-3,'pillar'],[6,-3,'brazier'],[-6,3,'brazier']]
-  :room.kind==='elite'?[[5,-3,'pillar'],[-5,3,'pillar'],[5,3,'brazier']]
-  :room.kind==='treasure'||room.kind==='secret'?[[3,3,'crate'],[-3,-3,'barrel']]
-  :room.kind==='forge'?[[5,2,'brazier'],[-5,-2,'crate']]
-  :room.shape%2===0?[[5,3,'pillar'],[-5,-3,'barrel'],[-5,3,'crate']]
-  :[[5,-3,'ruin'],[-5,3,'pillar'],[5,3,'barrel']];
-  for(const [dx,dy,kind] of presets as [number,number,SceneProp['kind']][]){
-    if(addSceneProp(cx+dx,cy+dy,kind))room.prop.push({x:(cx+dx+.5)*T,y:(cy+dy+.5)*T});
+  for(const [dx,dy,kind] of prefab.props){
+   if(addSceneProp(cx+dx,cy+dy,kind))room.prop.push({x:(cx+dx+.5)*T,y:(cy+dy+.5)*T});
   }
  }
- // Preserve complete walkable routes for every seed; entrances and corridors
- // are continuous even with corners and decorative stone columns.
  refreshStructuralColliders();const start=rooms[0];px=start.cx;py=start.cy;visitRoom(start);camera.x=px-W/2;camera.y=py-H/2;showLocation(regionNames[(run.floor-1)%5]);sound('room');}
 
 function roomAt(x:number,y:number){let found:Room|null=null,best=999999;for(const r of rooms){const dx=Math.abs(x-r.cx),dy=Math.abs(y-r.cy),metric=dx/8+dy/6;if(dx<T*7.5&&dy<T*5.5&&metric<best){best=metric;found=r;}}return found;}
@@ -323,7 +304,19 @@ function visitRoom(r:Room){if(r.seen&&(r.kind!=='boss'||r.cleared||r.active||run
  if(r.kind==='boss'&&run.sigils<2){showNotice(`PORTAL SELADO — ENCONTRE MAIS ${2-run.sigils} MARCAS DA FENDA`,4);return;}
  if(['treasure','forge','heal','shrine','secret'].includes(r.kind)){r.cleared=true;const kind=r.kind==='heal'?'heart':r.kind==='treasure'||r.kind==='secret'?'chest':'artifact';loot.push({x:r.cx,y:r.cy,kind,amount:kind==='heart'?45:1,label:r.title,room:r.id});showNotice(`✦ ${r.title} — APROXIME-SE E PRESSIONE E`,3);if(r.kind==='secret')discover('Câmara sem Nome');return;}
  r.active=true;r.enemiesLeft=0;const amount=r.kind==='boss'?1:r.kind==='elite'?5+run.floor:4+run.floor*2+int(0,2);
- for(let i=0;i<amount;i++){let x=r.cx+random(-210,210),y=r.cy+random(-130,130);if(!walkable(x,y,24)) {x=r.cx+random(-120,120);y=r.cy+random(-80,80);}const kind=r.kind==='boss'?'boss':r.kind==='elite'&&i===0?'elite':nearMobKind(run.floor);spawnMob(kind,r,x,y);r.enemiesLeft++;}
+ const blueprint=FRACTURE_ROOM_PREFABS.find(p=>p.id===r.prefabId);
+  const availableSpawns=[...(blueprint?.spawns||[])].sort(()=>Math.random()-.5);
+  for(let i=0;i<amount;i++){
+   let x=r.cx,y=r.cy;
+   if(r.kind!=='boss'){
+    const position=availableSpawns.find(([dx,dy])=>walkable(r.cx+(dx+.5)*T,r.cy+(dy+.5)*T,24));
+    if(position){x=r.cx+(position[0]+.5)*T;y=r.cy+(position[1]+.5)*T;
+       availableSpawns.splice(availableSpawns.indexOf(position),1);}
+    else{x=r.cx+random(-90,90);y=r.cy+random(-70,70);}
+   }
+   const kind=r.kind==='boss'?'boss':r.kind==='elite'&&i===0?'elite':nearMobKind(run.floor);
+   spawnMob(kind,r,x,y);r.enemiesLeft++;
+  }
  if(r.kind==='elite')showNotice('ELITE — CUIDADO COM O EXECUTOR!',2.8);
  if(r.kind==='boss')sound('boss');}
 function clearRoom(r:Room){if(r.cleared)return;r.cleared=true;r.active=false;run.coins+=int(8,16);run.echoes+=int(3,8);sound('room');
