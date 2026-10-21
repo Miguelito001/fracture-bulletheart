@@ -583,7 +583,7 @@ function isoCharacter(id:string,x:number,y:number,w:number,h:number,alpha=1){
    g.save();g.globalAlpha=alpha;g.imageSmoothingEnabled=true;
    const color=id==='arcanist'?'hue-rotate(58deg) saturate(1.25)':id==='bulwark'?'sepia(.28) saturate(1.4)':id==='elite'?'hue-rotate(290deg) contrast(1.18)':id==='knight'?'brightness(.76) saturate(.8)':'none';
    g.filter=color;
-   const dw=w*1.30,dh=h*1.53;g.drawImage(actor,p.x-dw/2,p.y-dh*.85,dw,dh);
+   const dw=w*2.2,dh=h*3.5;g.drawImage(actor,p.x-dw/2,p.y-dh*.89,dw,dh);
    g.restore();return;
   }
  }
