@@ -100,7 +100,16 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  });
  await page.keyboard.press('Digit2');
  const gunEnemyBefore=await page.evaluate(()=>window.__FRACTURE3D__.enemyUnits.at(-1).hp);
- await page.mouse.click(1420,680);
+ // Aim the real mouse at the actual 3D opponent's screen-space position,
+ // rather than clicking an arbitrary coordinate with a narrow pistol cone.
+ const gunPointer=await page.evaluate(()=>{
+   const g=window.__FRACTURE3D__,enemy=g.enemyUnits.at(-1);
+   const target=g.heroPivot.position.clone().set(enemy.body.translation().x,1.1,enemy.body.translation().z);
+   target.project(g.camera);
+   return {x:(target.x+1)*innerWidth/2,y:(1-target.y)*innerHeight/2};
+ });
+ await page.mouse.move(gunPointer.x,gunPointer.y);
+ await page.mouse.down();await page.mouse.up();
  await page.waitForTimeout(80);
  const gunResult=await page.evaluate(()=>{
   const g=window.__FRACTURE3D__;
