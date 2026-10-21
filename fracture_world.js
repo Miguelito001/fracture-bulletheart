@@ -232,13 +232,12 @@ function station(id,x,y){
     arch(x,y+47,228,186,t,"#76dcf5");
     stoneColumnAt(p.x-137,p.y+35,144,t,1.3);stoneColumnAt(p.x+137,p.y+35,144,t,1.3);
     sigil(x,y+47,91,"#65bceb");
-    for(const side of [-1,1]){banner(p.x+side*145,p.y-113,26,62,"#345b81");torch(x+side*158,y+89);}
+    for(const side of [-1,1])banner(p.x+side*145,p.y-113,26,62,"#345b81");
   }else if(id==="forge"){
     paveRug(x,y+38,124,"#785147");
     arch(x,y+72,235,151,t,"#ffb561");
     stoneColumnAt(p.x-132,p.y+30,106,t,1.15);stoneColumnAt(p.x+130,p.y+30,106,t,1.15);
-    for(let i=0;i<3;i++)cc0(i===0?"14":i===1?"16":"09",x-127+i*105,y+115,.61);
-    torch(x-144,y-25);torch(x+143,y-27);
+
   }else if(id==="merchant"){
     paveRug(x,y+53,127,"#87674b");
     for(const side of [-1,1])stoneColumnAt(p.x+side*112,p.y+31,123,t,.96);
@@ -248,21 +247,17 @@ function station(id,x,y){
     paveRug(x,y+40,134,"#584f77");
     arch(x,y+36,240,179,t,"#bf9cfc");
     stoneColumnAt(p.x-136,p.y+27,143,t,1.12);stoneColumnAt(p.x+136,p.y+27,143,t,1.12);
-    cc0("15",x-110,y+94,.58);cc0("13",x+110,y+89,.58);
+
   }else if(id==="vault"){
     paveRug(x,y+43,135,"#526e6c");
     arch(x,y+34,233,150,t,"#a7e0d5");
     for(const side of [-1,1])stoneColumnAt(p.x+side*128,p.y+36,137,t,1.06);
-    cc0("14",x-119,y+90,.66);cc0("14",x+119,y+90,.66);
+
   }else{
     paveRug(x,y+40,124,"#704e7a");
-    for(let i=0;i<4;i++){
-      const a=TAU*i/4;
-      const q=pos(x+Math.cos(a)*114,y+Math.sin(a)*114);
-      stoneColumnAt(q.x,q.y,89,t,.78);
-    }
+    for(const side of [-1,1])stoneColumnAt(p.x+side*95,p.y+21,89,t,.78);
     sigil(x,y+20,105,"#c898ea");
-    cc0("13",x-104,y+71,.55);cc0("13",x+109,y+76,.55);
+
   }
   // Preserve all previously implemented interactable station artwork.
   originalStation(id,x,y);
@@ -295,73 +290,47 @@ function visibleCombatGate(r,next){
 }
 
 function dungeonDecor(r){
-  if(!r.seen||cull(r.cx,r.cy,500))return;
-  const t=theme(),x=r.cx,y=r.cy,p=pos(x,y),seed=h32(r.gx,r.gy,run?.floor||1);
-  if(r.kind==="start"){
-    paveRug(x,y,158,"#334d74");
-    arch(x,y+48,215,165,t,"#69bfea");
-    sigil(x,y,106,"#719aca");
-    torch(x-212,y-162);torch(x+212,y+161);
-  }else if(r.kind==="boss"){
-    paveRug(x,y,230,"#70354e");
-    sigil(x,y,191,"#d869a3");
-    for(let i=0;i<4;i++){
-      const a=i*TAU/4+PI/4;
-      const q=pos(x+Math.cos(a)*245,y+Math.sin(a)*245);
-      stoneColumnAt(q.x,q.y,153,t,1.25);
-      banner(q.x,q.y-139,26,62,"#852e5e");
-    }
-    if(!r.cleared)torch(x-220,y-200,"#f269ae");
-  }else if(r.kind==="elite"){
-    paveRug(x,y,155,"#7e5341");
-    sigil(x,y,129,"#d39c68");
-    for(const [dx,dy] of [[-220,-145],[220,145]]){const q=pos(x+dx,y+dy);stoneColumnAt(q.x,q.y,135,t,1.2);}
-    for(const [dx,dy] of [[-215,113],[225,-99]]){torch(x+dx,y+dy);}
-  }else if(r.kind==="treasure"){
-    paveRug(x,y+30,120,"#7b6742");
-    arch(x,y+110,180,127,t,"#ecca76");
-    cc0("14",x-121,y+115,.75);cc0("14",x+123,y+115,.78);
-    sigil(x,y+12,75,"#ceba77");
-  }else if(r.kind==="shrine"||r.kind==="secret"){
-    paveRug(x,y,155,"#655477");
-    arch(x,y+93,235,136,t,"#be9af3");
-    sigil(x,y+27,116,"#a58bdc");
-    cc0("13",x-147,y-120,.78);cc0("13",x+152,y-115,.78);
-  }else if(r.kind==="heal"){
-    paveRug(x,y,135,"#366e65");
-    sigil(x,y+32,99,"#71ebc7");
-    for(const [dx,dy] of [[-175,-94],[175,94]])shrub(x+dx,y+dy,seed);
-  }else if(r.kind==="forge"){
-    paveRug(x,y,131,"#7b513c");
-    arch(x,y+99,190,139,t,"#ffa666");
-    cc0("14",x-121,y+110,.74);torch(x+160,y-58);
-  }else if(r.kind==="battle"){
-    if(seed%3===0){
-      arch(x+125,y-110,177,122,t,"#c7ad7c");
-      looseProp(x-210,y+97,seed);looseProp(x+195,y+130,seed>>>7);
-    }else if(seed%3===1){
-      // Former guard post: broken barricade, supplies and a warm beacon.
-      chasmRailing(x-173,y-125,t,135);
-      cc0("14",x+225,y-107,.8);
-      looseProp(x-172,y+129,seed);
-      torch(x+184,y+120);
-    }else{
-      // Catacomb: spaced columns, banners and ruins (safe outside the combat centre).
-      for(const [dx,dy] of [[-204,-148],[210,143]]){
-        const q=pos(x+dx,y+dy);stoneColumnAt(q.x,q.y,134,t,1.1);
-        banner(q.x+30,q.y-112,20,47,t.cloth);
-      }
-      cc0("09",x-140,y+160,.62);shrub(x+180,y-112,seed);
-    }
-    if(seed%4===0)looseProp(x+130,y+192,seed>>>5);
-  }
-  if(r.active){
-    for(const id of r.connections){
-      const next=rooms[id];if(next)visibleCombatGate(r,next);
-    }
-  }
-  // Interaction logic is in the simulation. Never draw duplicate, non-solid
-  // legacy furniture atop physical props from sceneProps.
+ if(!r.seen||cull(r.cx,r.cy,490))return;
+ const t=theme(),x=r.cx,y=r.cy,seed=h32(r.gx,r.gy,run?.floor||1);
+ // Floors, glyphs and wall-mounted detail may overlap the player's feet.
+ // A freestanding solid never exists here without a physical collider.
+ if(r.kind==="start"){
+   paveRug(x,y+15,132,"#344b64");
+   originalDecor(r); // actual interactable portal
+ }else if(r.kind==="boss"){
+   paveRug(x,y,197,"#66364e");sigil(x,y,161,"#d869a3");
+   for(let i=0;i<4;i++){
+     const angle=i*TAU/4+PI/4,q=pos(x+Math.cos(angle)*245,y+Math.sin(angle)*245);
+     stoneColumnAt(q.x,q.y,153,t,1.25);
+     banner(q.x,q.y-139,26,62,"#852e5e");
+   }
+ }else if(r.kind==="elite"){
+   paveRug(x,y,135,"#7c5342");sigil(x,y,110,"#d39c68");
+   for(const [dx,dy] of [[-220,-145],[220,145]]){
+     const q=pos(x+dx,y+dy);stoneColumnAt(q.x,q.y,135,t,1.2);
+   }
+ }else if(r.kind==="treasure"){
+   paveRug(x,y+8,104,"#655137");
+   sigil(x,y,65,"#ceba77");
+ }else if(r.kind==="shrine"||r.kind==="secret"){
+   paveRug(x,y,120,"#554e78");sigil(x,y+15,93,"#a58bdc");
+ }else if(r.kind==="heal"){
+   paveRug(x,y,110,"#36665f");sigil(x,y+10,76,"#71ebc7");
+ }else if(r.kind==="forge"){
+   paveRug(x,y,113,"#704b3d");sigil(x,y,79,"#e8a16e");
+ }else if(r.kind==="battle"){
+   if(seed%3===0){sigil(x+86,y-50,42,"#a59165");looseProp(x-189,y+80,seed);}
+   else if(seed%3===1){paveRug(x,y,75,"#535469");looseProp(x-160,y+100,seed);}
+   else{
+     for(const [dx,dy] of [[-204,-148],[210,143]]){
+       const q=pos(x+dx,y+dy);stoneColumnAt(q.x,q.y,134,t,1.1);
+       banner(q.x+25,q.y-108,20,44,t.cloth);
+     }
+   }
+ }
+ if(r.active)for(const id of r.connections){
+   const next=rooms[id];if(next)visibleCombatGate(r,next);
+ }
 }
 isoDungeonDecor=dungeonDecor;
 // Maintain the original hitboxes. Extra animation changes drawings, never combat timing.
