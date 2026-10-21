@@ -52,7 +52,7 @@ let mouseDown=false,charging=0,chargeStarted=false,fireHeld=false;const audioCoo
 let hubActive=false,returnCast=0,castStart:XY|null=null,hubStatus='';
 const HUB={x:4140,y:3300};
 const hubStations=[{id:'portal',label:'PORTAL DA FRATURA',x:HUB.x,y:HUB.y-205,color:'#9d8cf5'},{id:'forge',label:'FORJA',x:HUB.x-410,y:HUB.y-145,color:'#e6ab6c'},{id:'merchant',label:'MERCADOR',x:HUB.x+410,y:HUB.y-145,color:'#eac77f'},{id:'vault',label:'COFRE',x:HUB.x+410,y:HUB.y+145,color:'#84d7b9'},{id:'archive',label:'ARQUIVO',x:HUB.x-410,y:HUB.y+145,color:'#a6a6eb'},{id:'altar',label:'ALTAR DE PREPARAÇÃO',x:HUB.x,y:HUB.y+215,color:'#e6b4c2'}];
-type FloorMemory={world:Set<string>;blocked:Set<string>;rooms:Room[];mobs:Mob[];loot:Loot[];sigils:number};
+type FloorMemory={world:Set<string>;blocked:Set<string>;rooms:Room[];mobs:Mob[];loot:Loot[];sigils:number;props:SceneProp[]};
 let floorMemory=new Map<number,FloorMemory>();
 let locationLabel='',noticeTimer=0,locationTimer=0;let bossCurrent:Mob|null=null;let xpQueue=0;let lastStep=0;
 const regionNames=['CRÍPTA DAS CINZAS','SALÕES DA BRUMA','JARDIM DAS OSSADAS','FORJA DO ABISMO','CORAÇÃO PARTIDO'];
@@ -64,7 +64,24 @@ const weaponDesc:Record<Weapon,string>={sword:'CORTE EM ARCO',hammer:'GOLPE CARR
 const classNames:Record<ClassId,string>={wanderer:'CAÇADOR',bulwark:'COLOSSO',arcanist:'ARCANISTA'};
 const tileKey=(x:number,y:number)=>`${x},${y}`;const tile=(x:number,y:number)=>tileKey(Math.floor(x/T),Math.floor(y/T));
 const floorAt=(x:number,y:number)=>world.has(tile(x,y))&&!blocked.has(tile(x,y));
-function walkable(x:number,y:number,r=16){return floorAt(x-r,y-r)&&floorAt(x+r,y-r)&&floorAt(x-r,y+r)&&floorAt(x+r,y+r);}
+type SceneProp=XY & {kind:'pillar'|'crate'|'barrel'|'ruin'|'brazier'};
+let sceneProps:SceneProp[]=[];
+// Station geometry is shared by navigation and interaction; visual-only details remain non-solid.
+function stationCollision(x:number,y:number,r:number){
+ if(!hubActive)return false;
+ return hubStations.some(s=>Math.hypot(x-s.x,y-s.y)<r+(
+   s.id==='portal'?39:s.id==='merchant'?61:s.id==='archive'?66:s.id==='forge'?57:s.id==='vault'?62:49
+ ));
+}
+function addSceneProp(tx:number,ty:number,kind:SceneProp['kind']){
+ const key=tileKey(tx,ty);if(!world.has(key)||blocked.has(key))return false;
+ const p={x:(tx+.5)*T,y:(ty+.5)*T,kind};
+ blocked.add(key);sceneProps.push(p);return true;
+}
+function walkable(x:number,y:number,r=16){
+ if(stationCollision(x,y,r))return false;
+ return floorAt(x-r,y-r)&&floorAt(x+r,y-r)&&floorAt(x-r,y+r)&&floorAt(x+r,y+r);
+}
 // Move in short, safe steps. The previous small-radius fallback could leave the player inside a wall.
 function moveWithCollision(obj:XY,dx:number,dy:number,r=17){
  const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/Math.max(5,r*.6)));
@@ -145,31 +162,78 @@ function generateFloor(){world=new Set();blocked=new Set();rooms=[];mobs=[];shot
  if(Math.random()<.15)place('heal');
  if(Math.random()<.12)place('secret');
  rooms=nodes.map((p,i)=>({id:i,gx:p.x,gy:p.y,cx:(p.x*19+12)*T,cy:(p.y*15+10)*T,kind:rKinds[i],shape:int(0,5),seen:false,cleared:i===0,active:false,connections:adj[i],prop:[],enemiesLeft:0,title:roomNames[rKinds[i]],collected:false}));
+ sceneProps=[];
  const carve=(x:number,y:number)=>world.add(tileKey(x,y));
- for(const room of rooms){const cx=Math.floor(room.cx/T),cy=Math.floor(room.cy/T);
-  for(let dx=-7;dx<=7;dx++)for(let dy=-5;dy<=5;dy++){
-   let yes=true;
-   if(room.shape===0)yes=Math.abs(dx)<6||Math.abs(dy)<4;
-   if(room.shape===1)yes=(Math.abs(dx)<5||Math.abs(dy)<3);
-   if(room.shape===2)yes=Math.abs(dx)+Math.abs(dy)*1.22<12;
-   if(room.shape===3)yes=!(dx<-3&&dy<-1);
-   if(room.shape===4)yes=!(dx>3&&dy>1);
-   if(room.shape===5)yes=!(dx<-4&&dy>2)&&!(dx>4&&dy<-2);
-   if(yes)carve(cx+dx,cy+dy);
+ // Dungeon rooms have distinct footprints: chapel, vault, octagon, cross,
+ // collapsed hall and flanked fortress. None is a rectangular tile box.
+ const insideRoom=(r:Room,dx:number,dy:number)=>{
+   const ax=Math.abs(dx),ay=Math.abs(dy);
+   if(ax<=2&&ay<=2)return true; // Safe gameplay core and boss arena.
+   if(r.kind==='boss')return ax<=7&&ay<=5&&ax*.72+ay<=9.2;
+   if(r.kind==='start')return (ax<=5&&ay<=5&&ax*.65+ay<=7.6)||(ax<=3&&ay<=6);
+   if(r.kind==='treasure'||r.kind==='secret')return (ax<=4&&ay<=4&&ax*.65+ay<=5.8)||(ax<=2&&ay<=6);
+   if(r.kind==='elite')return ax<=7&&ay<=5&&((ax<=5&&ay<=4)||(ax<=3&&ay<=5)||(ax<=7&&ay<=2));
+   if(r.kind==='forge')return ax<=6&&ay<=5&&((ax<=4&&ay<=5)||(ax<=6&&ay<=3));
+   if(r.shape===0)return (ax<=4&&ay<=5)||(ax<=7&&ay<=2);
+   if(r.shape===1)return ax<=7&&ay<=5&&ax*.68+ay<=8.1;
+   if(r.shape===2)return ax<=6&&ay<=4&&(ax<=3||ay<=2||dx*dy<3);
+   if(r.shape===3)return (ax<=6&&ay<=3)||(ax<=3&&ay<=5);
+   if(r.shape===4)return ax<=7&&ay<=4&&ax*.7+ay<=7.4;
+   return (ax<=5&&ay<=5)||(ax<=7&&ay<=2);
+ };
+ for(const room of rooms){
+  const cx=Math.floor(room.cx/T),cy=Math.floor(room.cy/T);
+  for(let dx=-7;dx<=7;dx++)for(let dy=-6;dy<=6;dy++)if(insideRoom(room,dx,dy))carve(cx+dx,cy+dy);
+ }
+ // A narrow path with angled shoulders, a real threshold and occasional side
+ // alcoves. The same cells define rendering AND movement collision.
+ const carveStrip=(x1:number,y1:number,x2:number,y2:number,w=1)=>{
+   const count=Math.max(Math.abs(x2-x1),Math.abs(y2-y1));
+   for(let i=0;i<=count;i++){
+     const tx=Math.round(x1+(x2-x1)*i/Math.max(1,count));
+     const ty=Math.round(y1+(y2-y1)*i/Math.max(1,count));
+     for(let u=-w;u<=w;u++)for(let v=-w;v<=w;v++)if(Math.abs(u)+Math.abs(v)<=w+1)carve(tx+u,ty+v);
+   }
+ };
+ for(const [ai,bi] of edges){
+  const a=rooms[ai],b=rooms[bi],x1=Math.floor(a.cx/T),x2=Math.floor(b.cx/T),y1=Math.floor(a.cy/T),y2=Math.floor(b.cy/T);
+  if(y1===y2){
+    const dir=Math.sign(x2-x1),off=pick([-2,-1,1,2]),mid=Math.round((x1+x2)/2);
+    carveStrip(x1,y1,mid-dir*3,y1,1);
+    carveStrip(mid-dir*3,y1,mid,y1+off,1);
+    carveStrip(mid,y1+off,mid+dir*3,y1+off,1);
+    carveStrip(mid+dir*3,y1+off,x2,y2,1);
+    const bayX=mid,bayY=y1+off+(ai%2?3:-3);
+    for(let yy=bayY-1;yy<=bayY+1;yy++)carve(bayX,yy);
+  }else{
+    const dir=Math.sign(y2-y1),off=pick([-2,-1,1,2]),mid=Math.round((y1+y2)/2);
+    carveStrip(x1,y1,x1,mid-dir*3,1);
+    carveStrip(x1,mid-dir*3,x1+off,mid,1);
+    carveStrip(x1+off,mid,x1+off,mid+dir*3,1);
+    carveStrip(x1+off,mid+dir*3,x2,y2,1);
+    const bayX=x1+off+(bi%2?3:-3),bayY=mid;
+    for(let xx=bayX-1;xx<=bayX+1;xx++)carve(xx,bayY);
   }
  }
- for(const [ai,bi] of edges){const a=rooms[ai],b=rooms[bi],x1=Math.floor(a.cx/T),x2=Math.floor(b.cx/T),y1=Math.floor(a.cy/T),y2=Math.floor(b.cy/T);
-  if(y1===y2){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)for(let t=-2;t<=2;t++)carve(x,y1+t);}
-  else{for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++)for(let t=-2;t<=2;t++)carve(x1+t,y);}
- }
- for(const room of rooms){const cx=Math.floor(room.cx/T),cy=Math.floor(room.cy/T);if(room.kind==='boss'||room.kind==='start')continue;
-  for(let i=0;i<8;i++){
-   const dx=int(-5,5),dy=int(-3,3),x=cx+dx,y=cy+dy;
-   if(Math.abs(dx)<2||Math.abs(dy)<2||!world.has(tileKey(x,y)))continue;
-   if(Math.random()<.48){blocked.add(tileKey(x,y));room.prop.push({x:x*T+T/2,y:y*T+T/2});}
+ // Author actual props, not non-colliding decorations. Central combat zones
+ // and navigation lanes remain clear; props sit against room side walls.
+ for(const room of rooms){
+  const cx=Math.floor(room.cx/T),cy=Math.floor(room.cy/T);
+  if(room.kind==='start')continue;
+  const presets=room.kind==='boss'?[[6,3,'pillar'],[-6,-3,'pillar'],[6,-3,'brazier'],[-6,3,'brazier']]
+  :room.kind==='elite'?[[5,-3,'pillar'],[-5,3,'pillar'],[5,3,'brazier']]
+  :room.kind==='treasure'||room.kind==='secret'?[[3,3,'crate'],[-3,-3,'barrel']]
+  :room.kind==='forge'?[[5,2,'brazier'],[-5,-2,'crate']]
+  :room.shape%2===0?[[5,3,'pillar'],[-5,-3,'barrel'],[-5,3,'crate']]
+  :[[5,-3,'ruin'],[-5,3,'pillar'],[5,3,'barrel']];
+  for(const [dx,dy,kind] of presets as [number,number,SceneProp['kind']][]){
+    if(addSceneProp(cx+dx,cy+dy,kind))room.prop.push({x:(cx+dx+.5)*T,y:(cy+dy+.5)*T});
   }
  }
- const start=rooms[0];px=start.cx;py=start.cy;visitRoom(start); camera.x=px-W/2;camera.y=py-H/2;showLocation(regionNames[(run.floor-1)%5]);sound('room');}
+ // Preserve complete walkable routes for every seed; entrances and corridors
+ // are continuous even with corners and decorative stone columns.
+ const start=rooms[0];px=start.cx;py=start.cy;visitRoom(start);camera.x=px-W/2;camera.y=py-H/2;showLocation(regionNames[(run.floor-1)%5]);sound('room');}
+
 function roomAt(x:number,y:number){let found:Room|null=null,best=999999;for(const r of rooms){const dx=Math.abs(x-r.cx),dy=Math.abs(y-r.cy),metric=dx/8+dy/6;if(dx<T*7.5&&dy<T*5.5&&metric<best){best=metric;found=r;}}return found;}
 function nearMobKind(floor:number):MobKind{const types:MobKind[]=['crawler','crawler','crawler','ranger','knight','wisp'];if(floor>=2)types.push('bomber','ranger','knight');if(floor>=3)types.push('wisp','bomber','elite');return pick(types);}
 function spawnMob(kind:MobKind,room:Room,x:number,y:number){
@@ -238,8 +302,8 @@ function openReward(fromBoss:boolean){mode='choice';mouseDown=false;
  const all:Weapon[]=['sword','hammer','bow','gun','shotgun','staff','chakram'];const options=choicesOf(all.filter(x=>!run.weapons.includes(x)),2);while(options.length<2)options.push(pick(all));
  const titles=options.map(x=>weaponNames[x]);showOverlay(`<div class="modal"><header>✦ &nbsp; ${fromBoss?'DESPOJOS DO GUARDIÃO':'TESOURO ANTIGO'}</header><h2>Escolha o que levar.</h2><p class="lead">Armas diferentes, formas diferentes de lutar. Cada descoberta entra no Arquivo para futuras expedições.</p><div class="cards">${options.map((x,i)=>card(weaponNames[x],weaponDesc[x],'NOVA ARMA',x==='hammer'?'🔨':x==='bow'?'🏹':x==='staff'?'✧':x==='shotgun'?'⚡':'⚔',i)).join('')}${card('RELIQUIÁRIO','Duas evoluções aleatórias. Mantém seu arsenal.','ARTEFATO','✦',2)}</div></div>`);
  bindChoice([()=>{run.weapons[run.slot]=options[0];discover(options[0]);},()=>{run.weapons[run.slot]=options[1];discover(options[1]);},()=>{choicesOf(upgradeDefs,2).forEach(u=>{u.apply();discover(`up-${u.id}`);});}].map(fn=>()=>{fn();if(fromBoss)advanceFloor();}));}
-function rememberFloor(){floorMemory.set(run.floor,{world,blocked,rooms,mobs,loot,sigils:run.sigils});}
-function restoreFloor(which:number,nearBoss=false){const snap=floorMemory.get(which);if(!snap)return false;world=snap.world;blocked=snap.blocked;rooms=snap.rooms;mobs=snap.mobs;loot=snap.loot;shots=[];particles=[];run.floor=which;run.sigils=snap.sigils;bossCurrent=mobs.find(m=>m.kind==='boss'&&!m.dead)||null;current=nearBoss?rooms.find(r=>r.kind==='boss')||rooms[0]:rooms[0];px=current.cx;py=current.cy;camera.x=px-W/2;camera.y=py-H/2;showLocation(regionNames[(which-1)%5]);return true;}
+function rememberFloor(){floorMemory.set(run.floor,{world,blocked,rooms,mobs,loot,sigils:run.sigils,props:sceneProps});}
+function restoreFloor(which:number,nearBoss=false){const snap=floorMemory.get(which);if(!snap)return false;world=snap.world;blocked=snap.blocked;rooms=snap.rooms;mobs=snap.mobs;loot=snap.loot;sceneProps=snap.props||[...blocked].map(key=>{const [x,y]=key.split(',').map(Number);return {x:(x+.5)*T,y:(y+.5)*T,kind:'ruin' as const};});shots=[];particles=[];run.floor=which;run.sigils=snap.sigils;bossCurrent=mobs.find(m=>m.kind==='boss'&&!m.dead)||null;current=nearBoss?rooms.find(r=>r.kind==='boss')||rooms[0]:rooms[0];px=current.cx;py=current.cy;camera.x=px-W/2;camera.y=py-H/2;showLocation(regionNames[(which-1)%5]);return true;}
 function advanceFloor(){if(run.floor>=run.maxFloor){win();return;}rememberFloor();persistSession();run.floor++;run.hp=Math.min(run.maxHp,run.hp+Math.round(run.maxHp*.26));if(!restoreFloor(run.floor))generateFloor();}
 function retreatFloor(){if(run.floor<=1)return;rememberFloor();persistSession();if(restoreFloor(run.floor-1,true))showNotice('A ESCADARIA RETORNA AO ANDAR ANTERIOR',3);}
 function settleExpedition(kind:'death'|'extraction'|'victory'){clearSession();
@@ -490,19 +554,19 @@ function drawWorld(){g.save();g.translate(-Math.round(camera.x+random(-screenSha
  for(const r of rooms){if(!r.seen)continue;if(r.kind==='start'||r.kind==='forge'){glow(r.cx-160,r.cy-116,165,'rgba(255,148,71,ALPHA)',.18);glow(r.cx+160,r.cy-116,165,'rgba(255,148,71,ALPHA)',.18);}}
  g.restore();}
 
-type StoredFloor={world:string[];blocked:string[];rooms:Room[];mobs:Mob[];loot:Loot[];sigils:number};
+type StoredFloor={world:string[];blocked:string[];rooms:Room[];mobs:Mob[];loot:Loot[];sigils:number;props?:SceneProp[]};
 let sessionTimer=0;
-const packFloor=(value:FloorMemory):StoredFloor=>({world:[...value.world],blocked:[...value.blocked],rooms:value.rooms,mobs:value.mobs,loot:value.loot,sigils:value.sigils});
-const unpackFloor=(value:StoredFloor):FloorMemory=>({world:new Set(value.world),blocked:new Set(value.blocked),rooms:value.rooms,mobs:value.mobs,loot:value.loot,sigils:value.sigils});
+const packFloor=(value:FloorMemory):StoredFloor=>({world:[...value.world],blocked:[...value.blocked],rooms:value.rooms,mobs:value.mobs,loot:value.loot,sigils:value.sigils,props:value.props});
+const unpackFloor=(value:StoredFloor):FloorMemory=>({world:new Set(value.world),blocked:new Set(value.blocked),rooms:value.rooms,mobs:value.mobs,loot:value.loot,sigils:value.sigils,props:value.props||[...value.blocked].map(key=>{const [x,y]=key.split(',').map(Number);return {x:(x+.5)*T,y:(y+.5)*T,kind:'ruin' as const};})});
 function clearSession(){try{localStorage.removeItem(SESSION_KEY);}catch{}}
-function persistSession(){if(hubActive||!run||run.hp<=0)return;try{const memory=[...floorMemory].map(([id,f])=>[id,packFloor(f)]);const raw={version:1,run,world:[...world],blocked:[...blocked],rooms,mobs,loot,px,py,currentId:current?.id??0,memory,nextMob};localStorage.setItem(SESSION_KEY,JSON.stringify(raw));}catch{}}
+function persistSession(){if(hubActive||!run||run.hp<=0)return;try{const memory=[...floorMemory].map(([id,f])=>[id,packFloor(f)]);const raw={version:1,run,world:[...world],blocked:[...blocked],rooms,mobs,loot,sceneProps,px,py,currentId:current?.id??0,memory,nextMob};localStorage.setItem(SESSION_KEY,JSON.stringify(raw));}catch{}}
 function restoreSession():boolean{try{const data=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');if(!data||data.version!==1||!data.run||!Array.isArray(data.rooms)||!Array.isArray(data.world)||!Array.isArray(data.mobs)||!Array.isArray(data.loot)||data.world.length>15000||data.mobs.length>1500||data.run.hp<=0||!['wanderer','bulwark','arcanist'].includes(data.run.classId))return false;
- run=data.run;run.cargo||=[];run.scrolls||=0;rooms=data.rooms;world=new Set(data.world);blocked=new Set(data.blocked);mobs=data.mobs;loot=data.loot;shots=[];particles=[];floorMemory=new Map((data.memory||[]).map(([id,f]:[number,StoredFloor])=>[id,unpackFloor(f)]));px=data.px;py=data.py;nextMob=data.nextMob||1;current=rooms.find(q=>q.id===data.currentId)||rooms[0]||null;camera.x=px-W/2;camera.y=py-H/2;hubActive=false;mode='playing';el('#hud').classList.remove('hidden');el('#hub-status').classList.add('hidden');el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='EXPEDIÇÃO · I MOCHILA · R RETORNO (4s) · E NÓ ZERO · WASD · ESPAÇO · Q';showNotice('EXPEDIÇÃO RECUPERADA. A MASMORRA NÃO MUDOU.',3.5);return true;
+ run=data.run;run.cargo||=[];run.scrolls||=0;rooms=data.rooms;world=new Set(data.world);blocked=new Set(data.blocked);mobs=data.mobs;loot=data.loot;sceneProps=Array.isArray(data.sceneProps)?data.sceneProps:[...blocked].map(key=>{const [x,y]=key.split(',').map(Number);return {x:(x+.5)*T,y:(y+.5)*T,kind:'ruin' as const};});shots=[];particles=[];floorMemory=new Map((data.memory||[]).map(([id,f]:[number,StoredFloor])=>[id,unpackFloor(f)]));px=data.px;py=data.py;nextMob=data.nextMob||1;current=rooms.find(q=>q.id===data.currentId)||rooms[0]||null;camera.x=px-W/2;camera.y=py-H/2;hubActive=false;mode='playing';el('#hud').classList.remove('hidden');el('#hub-status').classList.add('hidden');el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='EXPEDIÇÃO · I MOCHILA · R RETORNO (4s) · E NÓ ZERO · WASD · ESPAÇO · Q';showNotice('EXPEDIÇÃO RECUPERADA. A MASMORRA NÃO MUDOU.',3.5);return true;
  }catch{return false;}}
 window.addEventListener('pagehide',()=>{if(!hubActive&&run?.hp>0)persistSession();});
 
 // The Anchor Chamber is a permanent, walkable place. It is NEVER procedurally regenerated.
-function enterHub(){clearSession();hubActive=true;returnCast=0;castStart=null;run=createRun(save.preferredClass||'wanderer');world=new Set();blocked=new Set();rooms=[];mobs=[];shots=[];loot=[];particles=[];current=null;for(let x=-13;x<=13;x++)for(let y=-9;y<=9;y++){const core=Math.abs(x)<=6&&Math.abs(y)<=5;const forge=x>=-13&&x<=-6&&y>=-6&&y<=-1;const archive=x>=-13&&x<=-6&&y>=1&&y<=7;const merchant=x>=6&&x<=13&&y>=-6&&y<=-1;const vault=x>=6&&x<=13&&y>=1&&y<=7;const portal=Math.abs(x)<=4&&y>=-9&&y<=-4;const altar=Math.abs(x)<=4&&y>=4&&y<=9;if(core||forge||archive||merchant||vault||portal||altar)world.add(tileKey(HUB.x/T+x,HUB.y/T+y));}for(const [x,y] of [[-5,-4],[5,-4],[-5,4],[5,4],[-9,-5],[9,-5],[-9,5],[9,5]])blocked.add(tileKey(HUB.x/T+x,HUB.y/T+y));px=HUB.x;py=HUB.y+35;camera.x=px-W/2;camera.y=py-H/2;mode='hub';el('#overlay').innerHTML='';el('#hud').classList.add('hidden');el('#hub-status').classList.remove('hidden');updateHubLabel();el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='CÂMARA ÂNCORA · WASD MOVER · E INTERAGIR · I MOCHILA · ESC PAUSAR';showLocation('CÂMARA ÂNCORA');}
+function enterHub(){clearSession();hubActive=true;returnCast=0;castStart=null;run=createRun(save.preferredClass||'wanderer');world=new Set();blocked=new Set();sceneProps=[];rooms=[];mobs=[];shots=[];loot=[];particles=[];current=null;for(let x=-13;x<=13;x++)for(let y=-9;y<=9;y++){const core=Math.abs(x)<=6&&Math.abs(y)<=5;const forge=x>=-13&&x<=-6&&y>=-6&&y<=-1;const archive=x>=-13&&x<=-6&&y>=1&&y<=7;const merchant=x>=6&&x<=13&&y>=-6&&y<=-1;const vault=x>=6&&x<=13&&y>=1&&y<=7;const portal=Math.abs(x)<=4&&y>=-9&&y<=-4;const altar=Math.abs(x)<=4&&y>=4&&y<=9;if(core||forge||archive||merchant||vault||portal||altar)world.add(tileKey(HUB.x/T+x,HUB.y/T+y));}for(const [x,y] of [[-5,-4],[5,-4],[-5,4],[5,4],[-9,-5],[9,-5],[-9,5],[9,5]])addSceneProp(HUB.x/T+x,HUB.y/T+y,'pillar');px=HUB.x;py=HUB.y+35;camera.x=px-W/2;camera.y=py-H/2;mode='hub';el('#overlay').innerHTML='';el('#hud').classList.add('hidden');el('#hub-status').classList.remove('hidden');updateHubLabel();el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='CÂMARA ÂNCORA · WASD MOVER · E INTERAGIR · I MOCHILA · ESC PAUSAR';showLocation('CÂMARA ÂNCORA');}
 function updateHub(dt:number){globalTime+=dt;noticeTimer-=dt;locationTimer-=dt;let dx=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),dy=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));const direction=isoMove(dx,dy);moveWithCollision({get x(){return px;},set x(v:number){px=v;},get y(){return py;},set y(v:number){py=v;}},direction.x*240*dt,direction.y*240*dt,15);camera.x+=(px-W/2-camera.x)*Math.min(1,dt*8);camera.y+=(py-H/2-camera.y)*Math.min(1,dt*8);if(noticeTimer<=0)el('#notice').style.opacity='0';if(locationTimer<=0)el('#location-toast').style.opacity='0';}
 function updateHubLabel(){el('#hub-echoes').textContent=String(save.echoes);el('#hub-scrolls').textContent=String(save.portalScrolls||0);el('#hub-extractions').textContent=String(save.extractions||0);}
 function drawHubStations(){
@@ -767,6 +831,11 @@ function isoActorMob(m:Mob){if(m.dead)return;const p=isoPoint(m.x,m.y);if(m.wind
  if(m.kind==='boss'&&m.shield>0){for(const a of m.anchors){isoImg('altar',a.x,a.y,44,64);const q=isoPoint(a.x,a.y);g.strokeStyle='#94dff2aa';g.beginPath();g.moveTo(q.x,q.y-45);g.lineTo(p.x,p.y-80);g.stroke();}}
  if(m.kind!=='boss'){g.fillStyle='#0c1822';g.fillRect(p.x-25,p.y-91,50,6);g.fillStyle=m.champion?'#eac37d':'#d77983';g.fillRect(p.x-23,p.y-89,46*clamp(m.hp/m.max,0,1),3);}
 }
+function isoSceneProp(p:SceneProp){
+ const sprite=p.kind==='pillar'?'stoneColumn_S':p.kind==='barrel'?'barrel_S':p.kind==='crate'?'woodenCrate_S':p.kind==='brazier'?'candleStand_S':'stoneWallColumn_S';
+ kenney(sprite,p.x,p.y,p.kind==='pillar'?1.07:.91);
+ if(p.kind==='brazier')isoTorch(p.x,p.y);
+}
 function isoLoot(l:Loot){const p=isoPoint(l.x,l.y),bob=Math.sin(globalTime*3+l.x)*5;if(l.kind==='xp'||l.kind==='material'){const c=l.kind==='xp'?'#79dfd1':MATERIALS[l.materialId||'scrap']?.color||'#e9d49f';g.save();g.shadowColor=c;g.shadowBlur=15;g.fillStyle=c;g.beginPath();g.moveTo(p.x,p.y-27+bob);g.lineTo(p.x+9,p.y-18+bob);g.lineTo(p.x,p.y-8+bob);g.lineTo(p.x-9,p.y-18+bob);g.closePath();g.fill();g.restore();}
  else if(l.kind==='coin'){g.fillStyle='#e5bd6b';g.beginPath();g.ellipse(p.x,p.y-12+bob,8,5,0,0,Math.PI*2);g.fill();}
  else isoImg(l.kind==='heart'?'potion':l.kind==='chest'?'chest':'altar',l.x,l.y,55,62);
@@ -788,9 +857,10 @@ function drawIsoWorld(){
   if(!world.has(tileKey(x-1,y)))queue.push({depth:x*T+y*T-1,render:()=>isoWall(x,y,'west',hubActive?78:84)});
   if(!world.has(tileKey(x,y+1)))queue.push({depth:wx+wy+T/2,render:()=>isoEdge(x,y,'south')});
   if(!world.has(tileKey(x+1,y)))queue.push({depth:wx+wy+T/2,render:()=>isoEdge(x,y,'east')});
-  if(blocked.has(tileKey(x,y)))queue.push({depth:wx+wy+30,render:()=>{if(!kenney(h%5===0?'stoneColumn_S':h%5===1?'barrel_S':h%5===2?'woodenCrates_S':'stoneWallColumn_S',wx,wy,1.07)){isoPrism(wx,wy,21,83,'#75767b','#434953','#59616b');}if(h%7===0)isoTorch(wx,wy);}});
+  
   if(hubActive){if(h%91===0){queue.push({depth:wx+wy,render:()=>{const p=isoPoint(wx,wy);g.fillStyle='#9ca9a035';g.fillRect(p.x-2,p.y-8,5,4);}});}}
  }
+ for(const p of sceneProps)queue.push({depth:p.x+p.y+5,render:()=>isoSceneProp(p)});
  if(hubActive){for(const s of hubStations)queue.push({depth:s.x+s.y,render:()=>isoStation(s.id,s.x,s.y)});for(const [dx,dy] of [[-720,-305],[720,-305],[-700,295],[700,295],[-150,-340],[150,-340],[-150,370],[150,370]]){const x=HUB.x+dx,y=HUB.y+dy;queue.push({depth:x+y,render:()=>isoTorch(x,y)});}}
  else{
   for(const r of rooms)if(r.seen){queue.push({depth:r.cx+r.cy-20,render:()=>isoDungeonDecor(r)});}
