@@ -1,40 +1,38 @@
-name: Prepare FRACTURE source
+name: FRACTURE Open Asset Integration
 on:
   push:
-    branches: [main]
+    branches: [feature/isometric-v2]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
-  unpack:
-    if: "contains(github.event.head_commit.message, 'bootstrap: upload source')"
+  kenney:
+    if: "contains(github.event.head_commit.message, 'artpass: import Kenney sprites')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Expand source bundle
-        run: node bootstrap.mjs
-      - name: Generate original art
-        run: |
-          python -m pip install Pillow
-          python tools/create_art.py
-          python tools/menu_art.py
-      - name: Install and test
+      - name: Get required open art processing dependency
+        run: python -m pip install Pillow
+      - name: Download and bundle Kenney CC0 source sprites
+        run: python tools/import_kenney_cc0.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check, build and run asset and game tests
         run: |
           npm install
           npm run check
           npm run build
           npm test
-      - name: Publish complete repository
+      - name: Publish tested CC0 sprites into preview branch
         run: |
-          rm -f bootstrap.mjs bundle.part*.txt
-          rm -f .github/workflows/ci.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "feat: publish FRACTURE BULLETHEART 1.2 source and assets"
-          git push origin main
+          git add assets/kenney
+          git diff --cached --quiet || git commit -m "feat: bundle 48 Kenney CC0 dungeon and library sprites"
+          git push origin HEAD:feature/isometric-v2
