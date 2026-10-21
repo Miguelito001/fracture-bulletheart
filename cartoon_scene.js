@@ -303,10 +303,42 @@
     if(r.active){const n=r.connections||[];for(const id of n){const next=rooms[id],a=Math.atan2(next.cy-r.cy,next.cx-r.cx),v=vec(a,T*7.3),q=isoPoint(r.cx+v.x,r.cy+v.y);
       g.strokeStyle="#ee737f";g.lineWidth=7;g.beginPath();g.moveTo(q.x-12,q.y-6);g.lineTo(q.x+12,q.y+6);g.stroke();}}
   };
+
+  function bloomLight(x,y,c,r=260,intensity=1){
+    const q=isoPoint(x,y),a=Math.max(.1,intensity);
+    g.save();g.globalCompositeOperation="screen";
+    const light=g.createRadialGradient(q.x,q.y,3,q.x,q.y,r);
+    light.addColorStop(0,c+"50");light.addColorStop(.25,c+"2e");light.addColorStop(.65,c+"13");light.addColorStop(1,c+"00");
+    g.globalAlpha=Math.min(1,a);g.fillStyle=light;g.fillRect(q.x-r,q.y-r,r*2,r*2);g.restore();
+  }
+  function animatedAtmosphere(){
+    if(hubActive){
+      bloomLight(hubStations[0].x,hubStations[0].y-100,"#50c4fa",325,1);
+      bloomLight(hubStations[1].x,hubStations[1].y-50,"#ff983b",320,.9);
+      bloomLight(hubStations[2].x,hubStations[2].y-60,"#ffca72",220,.7);
+      bloomLight(hubStations[3].x,hubStations[3].y-55,"#74d7b2",200,.65);
+      bloomLight(hubStations[4].x,hubStations[4].y-50,"#ba90ff",225,.65);
+      bloomLight(hubStations[5].x,hubStations[5].y-50,"#d19bff",240,.7);
+    }else{
+      for(const r of rooms){
+        if(!r.seen)continue;
+        const p=isoPoint(r.cx,r.cy);
+        if(p.x<-320||p.x>W+320||p.y<-320||p.y>H+320)continue;
+        if(r.kind==="start")bloomLight(r.cx,r.cy-40,"#428df9",285,1);
+        else if(r.kind==="forge")bloomLight(r.cx,r.cy,"#ff9941",260,.9);
+        else if(r.kind==="elite"||r.kind==="boss")bloomLight(r.cx,r.cy,"#d85895",250,.55);
+        else if(r.kind==="treasure")bloomLight(r.cx,r.cy,"#ffc56b",200,.35);
+      }
+    }
+    const fog=g.createLinearGradient(0,0,W,H);
+    fog.addColorStop(0,"#273a6709");fog.addColorStop(.65,"#5e58a004");fog.addColorStop(1,"#0c183f0a");
+    g.fillStyle=fog;g.fillRect(0,0,W,H);
+  }
   /* Some legacy miniature props are used for collision only; visible obstacles get voxel silhouettes. */
   const previousWorld=drawIsoWorld;
   drawIsoWorld=function(){
     previousWorld();
+    animatedAtmosphere();
     /* Floating sparks and a soft atmospheric wash make the hub feel inhabited. */
     if(hubActive) {
       g.save();
