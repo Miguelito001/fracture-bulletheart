@@ -194,7 +194,7 @@
   }
   function toonPortal(x,y) {
     altarBase(x,y+33,"#284060",88);
-    voxel("15",x-85,y-18,.76,47);voxel("15",x+85,y-18,.76,47);
+    // The arch and its collidable stone pillars are authored in fracture_world.js.
     const p=isoPoint(x,y),beat=globalTime*2;
     g.save();g.shadowColor="#53c3ff";g.shadowBlur=45;
     ell(p.x,p.y-103,47,71,"#10275c");ell(p.x,p.y-103,41,65,"#2877d1");
@@ -217,7 +217,7 @@
     }
   }
   function toonForge(x,y) {
-    voxel("14",x-93,y+22,.75,1);voxel("15",x+82,y+12,.76,0);
+    voxel("14",x-93,y+22,.75,1);
     const p=isoPoint(x,y);
     /* furnace with cast iron mouth and orange animated light */
     rounded(p.x-75,p.y-141,100,112,14,"#4b4b5e","#c9a16c");
@@ -261,7 +261,7 @@
   }
   function toonVault(x,y) {
     const p=isoPoint(x,y);
-    voxel("09",x-71,y-23,.77,38);voxel("09",x+71,y-23,.77,38);
+    // Real masonry vault wings are provided by the collidable station geometry.
     rounded(p.x-54,p.y-121,108,93,11,"#425569","#c59e6b");
     rounded(p.x-40,p.y-112,80,73,9,"#233646","#a9b5be");
     ell(p.x,p.y-78,17,18,"#d9b26a");ell(p.x,p.y-78,9,10,"#485765");
@@ -270,7 +270,7 @@
     isoText("COFRE",p.x,p.y-157,14,"#b8f7dc");
   }
   function toonAltar(x,y) {
-    altarBase(x,y+20,"#553858",78);voxel("15",x,y,.75,30);isoGem(x,y,"#dda8fb",109);
+    altarBase(x,y+20,"#553858",78);isoGem(x,y,"#dda8fb",109);
     const p=isoPoint(x,y);isoText("ALTAR DE PREPARAÇÃO",p.x,p.y-150,13,"#f2cfe7");
     for(let i=0;i<4;i++){const a=i*Math.PI/2+globalTime*.2;ell(p.x+Math.cos(a)*62,p.y-8+Math.sin(a)*30,3,3,"#ebbbff");}
   }
@@ -289,9 +289,9 @@
     if(r.kind==="start"){toonPortal(r.cx,r.cy-50);return;}
     if(r.kind==="boss"||r.kind==="elite"){
       altarBase(r.cx,r.cy,r.kind==="boss"?"#502c64":"#574039",115);
-      voxel("09",r.cx-175,r.cy-90,.8,24);voxel("09",r.cx+175,r.cy+90,.8,24);
+      // Architectural columns replace non-solid pale stone voxel blocks.
       if(r.cleared)isoText("[ E ] DESCER",p.x,p.y-145,16,"#e6c8ff");
-    }else if(r.kind==="treasure"){voxel("14",r.cx,r.cy,.8,0);isoGem(r.cx,r.cy,"#e9bc6d",83);}
+    }else if(r.kind==="treasure"){isoGem(r.cx,r.cy,"#e9bc6d",83);}
     else if(r.kind==="shrine"||r.kind==="secret")toonAltar(r.cx,r.cy);
     else if(r.kind==="forge")toonForge(r.cx,r.cy);
     else if(r.kind==="heal"){altarBase(r.cx,r.cy,"#2d5e63",82);isoGem(r.cx,r.cy,"#70ebcc",75);}
