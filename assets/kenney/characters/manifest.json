@@ -1,0 +1,728 @@
+{
+  "author": "Kenney",
+  "license": "CC0-1.0",
+  "source": "Kenney Dungeon Pack 2.3",
+  "commit": "45df48c4d45f8716216b1a9e22df0b69cd9f5932",
+  "files": [
+    {
+      "file": "Male_0_Idle0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_0_Idle0.png",
+      "sha256": "d3b1fe7f2b34ee3077b3f853fbf36cfdcbb40324368f54f2673f35bf341b1059",
+      "bbox": [
+        106,
+        324,
+        151,
+        457
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_0_Run0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_0_Run0.png",
+      "sha256": "49cc0488334fa4c26f23c6366a2fa567da868b2d30c3e849a16589cf13a3664d",
+      "bbox": [
+        98,
+        326,
+        157,
+        458
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_0_Run2.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_0_Run2.png",
+      "sha256": "177d9ff5ab42a184ec00c069b5a1793dc62384b3a7e5ab7ce00dac9bd309cb47",
+      "bbox": [
+        80,
+        314,
+        163,
+        442
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_0_Run4.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_0_Run4.png",
+      "sha256": "20b5ceeecda493f5b9eb483b7789c575aedd3690efe715ecfcd45f5517fc78ee",
+      "bbox": [
+        102,
+        330,
+        166,
+        453
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_0_Run6.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_0_Run6.png",
+      "sha256": "aaa3709e326db22cfd00f5017ae6a4efc7f1f843d6339fce34146933be794cae",
+      "bbox": [
+        92,
+        314,
+        166,
+        452
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_0_Run8.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_0_Run8.png",
+      "sha256": "5c82915ace2c4e359f2153ec123e82b1ee8b504633fa62bd9d86eaf7e0f3bde4",
+      "bbox": [
+        97,
+        322,
+        163,
+        436
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_1_Idle0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_1_Idle0.png",
+      "sha256": "2c7c5aca151cb8734b1849b8ed667ffe9261db5504c5c60d36151e7900365405",
+      "bbox": [
+        116,
+        325,
+        142,
+        461
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_1_Run0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_1_Run0.png",
+      "sha256": "becc9cb405c12824f7f6e3aa5be6204fc0280e8c9534c801a714527d3810871e",
+      "bbox": [
+        95,
+        335,
+        169,
+        448
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_1_Run2.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_1_Run2.png",
+      "sha256": "3734eb142509a8a5970af31354cba64a06c019920fe54d2728bde2ccee2bd1b4",
+      "bbox": [
+        67,
+        323,
+        178,
+        425
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_1_Run4.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_1_Run4.png",
+      "sha256": "c27858aa73fda9df8a39abcac4b3b811d9ab083e0482c7180de9221f1863e61a",
+      "bbox": [
+        98,
+        339,
+        168,
+        454
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_1_Run6.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_1_Run6.png",
+      "sha256": "881872b50f02ceb55b7b6edd5f86c97eb22c1dc4d6e3b6aa23d5493af020c9b1",
+      "bbox": [
+        73,
+        323,
+        175,
+        437
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_1_Run8.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_1_Run8.png",
+      "sha256": "4dab54eef4da3a937df5c7e98ad188f2d06d4afe5275991198097d16d69ba16e",
+      "bbox": [
+        82,
+        331,
+        171,
+        444
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_2_Idle0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_2_Idle0.png",
+      "sha256": "f9e8c2b48e43a07e22992bede320d6adab0bf0bf8cd1f63e9a2343b5f2089a99",
+      "bbox": [
+        105,
+        326,
+        152,
+        461
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_2_Run0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_2_Run0.png",
+      "sha256": "c8dff0691f89e3a7c76cde91c7147c785ad282ecac29558919742268e9776bce",
+      "bbox": [
+        103,
+        344,
+        164,
+        444
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_2_Run2.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_2_Run2.png",
+      "sha256": "aca3c5dfa2d737607a518a45f828bb623fc099501d6da4c875fa6db6899b3876",
+      "bbox": [
+        85,
+        332,
+        168,
+        434
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_2_Run4.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_2_Run4.png",
+      "sha256": "9f41814eca3b89df23e78881ded85310dc3aaf791c58eceebc4fd777b4296351",
+      "bbox": [
+        107,
+        349,
+        169,
+        457
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_2_Run6.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_2_Run6.png",
+      "sha256": "09a810daa42103fac5a7d27d311c3adfdf407f10dd3b407bd7d12ea465b82948",
+      "bbox": [
+        84,
+        333,
+        162,
+        421
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_2_Run8.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_2_Run8.png",
+      "sha256": "331eeb6bac485317beff817c574af197692bad0d447bc681e232c9ff2d3436f1",
+      "bbox": [
+        90,
+        340,
+        163,
+        457
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_3_Idle0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_3_Idle0.png",
+      "sha256": "4261fe14d0c4db50032b89e65c3bb128e8dd16b14cc6ebe979d3858805b7045e",
+      "bbox": [
+        100,
+        326,
+        157,
+        456
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_3_Run0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_3_Run0.png",
+      "sha256": "5b9150828213b8b9320b939bac9e3a5ac15b6086ab8fec7192fbf9181a51955a",
+      "bbox": [
+        103,
+        348,
+        156,
+        444
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_3_Run2.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_3_Run2.png",
+      "sha256": "b7c3e7ebfa246c3e904033225974245e4d62dd1d477ac27aaf4bbc46b726935e",
+      "bbox": [
+        101,
+        336,
+        153,
+        437
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_3_Run4.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_3_Run4.png",
+      "sha256": "632c85e48f79b16ed18b6546622da21a3e6fce64792722348e19e292424ae22e",
+      "bbox": [
+        100,
+        354,
+        157,
+        458
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_3_Run6.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_3_Run6.png",
+      "sha256": "88ab9d6e5e7504207e925bfeabee680b59d9775090f8e33d7e3a27828493df71",
+      "bbox": [
+        101,
+        339,
+        157,
+        422
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_3_Run8.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_3_Run8.png",
+      "sha256": "c20d91024617a29bf737ea0e447ef9d754d8e451fb9a8d80d8181586d8bf2e2c",
+      "bbox": [
+        98,
+        345,
+        158,
+        464
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_4_Idle0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_4_Idle0.png",
+      "sha256": "72ac8926aea34ff15f61302f427b52244460aa16b7c0b86bb4af72fd207f5a63",
+      "bbox": [
+        105,
+        326,
+        150,
+        460
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_4_Run0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_4_Run0.png",
+      "sha256": "4b94e10c15765680f17bb2402bfdecfe256f4a5c4326dd49e67471c885f1c963",
+      "bbox": [
+        99,
+        343,
+        158,
+        448
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_4_Run2.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_4_Run2.png",
+      "sha256": "95319b848e3908796978feaa1b30909aa812fd996557a72865c786f07fba891f",
+      "bbox": [
+        93,
+        331,
+        176,
+        431
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_4_Run4.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_4_Run4.png",
+      "sha256": "28afaf759c536a7749c5e4d01cc365a250223f4eb91ce5a9dea0ca1bf4261858",
+      "bbox": [
+        90,
+        349,
+        154,
+        455
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_4_Run6.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_4_Run6.png",
+      "sha256": "080e11b9a76f06a3c1286ad040da0f604e588671a3d88072e0df900cd80a5053",
+      "bbox": [
+        91,
+        336,
+        164,
+        423
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_4_Run8.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_4_Run8.png",
+      "sha256": "a9debde6d251f3c958f425e2dd52e72c2cba3d21dbfc04108a84642fe024089f",
+      "bbox": [
+        93,
+        341,
+        158,
+        461
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_5_Idle0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_5_Idle0.png",
+      "sha256": "388becc68960c402bf47da547428631933c70f96dead591d4618035bd7087a5b",
+      "bbox": [
+        114,
+        325,
+        140,
+        459
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_5_Run0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_5_Run0.png",
+      "sha256": "cd8e37826b32e66516d9b92cc89ca3ed6b68f16cb334c99f10937522c5e311de",
+      "bbox": [
+        87,
+        333,
+        161,
+        455
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_5_Run2.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_5_Run2.png",
+      "sha256": "0cad99d12ffae4d52b33fae0902b8dacafef2679a1d9ead244a8d15a8f5348fc",
+      "bbox": [
+        78,
+        322,
+        189,
+        423
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_5_Run4.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_5_Run4.png",
+      "sha256": "ca5b7cd8944b73c6623c35f4f64b917f59896827c095ca87e28abd2903d58100",
+      "bbox": [
+        88,
+        339,
+        158,
+        450
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_5_Run6.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_5_Run6.png",
+      "sha256": "2bdbfb9a865872de76771f42766648102d7b1f52aa605ea0ccb0aba3faa6df94",
+      "bbox": [
+        81,
+        327,
+        183,
+        433
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_5_Run8.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_5_Run8.png",
+      "sha256": "6cbca8d3ea0eabde6f450418232513c1c5f9d82d908519df94f4a779907f6220",
+      "bbox": [
+        85,
+        332,
+        174,
+        451
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_6_Idle0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_6_Idle0.png",
+      "sha256": "6aac081f940a76f16773e0b88d34cb315a12230d6c7243e51b36c38450e0ceaf",
+      "bbox": [
+        104,
+        324,
+        151,
+        456
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_6_Run0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_6_Run0.png",
+      "sha256": "0960be2db7f3015c7a154ef653988e6bb38c4595da3bda0eaf8977ed1a29f572",
+      "bbox": [
+        92,
+        325,
+        153,
+        464
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_6_Run2.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_6_Run2.png",
+      "sha256": "b3573c0ee8cbaf433d50fc12f627f330bfba04daa60654b655bb4714907107f0",
+      "bbox": [
+        88,
+        313,
+        171,
+        443
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_6_Run4.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_6_Run4.png",
+      "sha256": "09e3960d4d6438fc4f21b308bd1c1403079e980bb40c37106d40948fd5b4895c",
+      "bbox": [
+        87,
+        330,
+        149,
+        449
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_6_Run6.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_6_Run6.png",
+      "sha256": "2100e9ade5b5d4ddd3df35a143f8575e921454c583cc5ec1b3b564c13108afb3",
+      "bbox": [
+        94,
+        317,
+        172,
+        450
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_6_Run8.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_6_Run8.png",
+      "sha256": "bffb1548e2cf8f8b48b7ed0b4059da6f43f8cc7fdaa863a46d017edf68163c5c",
+      "bbox": [
+        93,
+        323,
+        166,
+        441
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_7_Idle0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_7_Idle0.png",
+      "sha256": "226d7c3f8485c04b80d4f405e2fe17d7c1d9a9f62e4f77b021222927ddda0a61",
+      "bbox": [
+        99,
+        323,
+        156,
+        454
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_7_Run0.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_7_Run0.png",
+      "sha256": "e91860ac39843e785fafa62f5b1df0a808ec3d4b34e08ab7210614d723738698",
+      "bbox": [
+        100,
+        321,
+        153,
+        466
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_7_Run2.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_7_Run2.png",
+      "sha256": "eb6d697d0ebd6857c24ce1735bf3e7d48f5c38622d31a0204ea8e8ce1425b0df",
+      "bbox": [
+        103,
+        309,
+        155,
+        451
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_7_Run4.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_7_Run4.png",
+      "sha256": "ca7a093caf7a674f9e15710e621f389fa5011243cb3e97ae43cef7225fcac563",
+      "bbox": [
+        99,
+        326,
+        156,
+        452
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_7_Run6.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_7_Run6.png",
+      "sha256": "d9e4076248bb0fd83bfb8bf233d0cec69d39a26916305883ee70e45a31884941",
+      "bbox": [
+        99,
+        311,
+        155,
+        457
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    },
+    {
+      "file": "Male_7_Run8.png",
+      "url": "https://raw.githubusercontent.com/ETdoFresh/kenney.nl/45df48c4d45f8716216b1a9e22df0b69cd9f5932/kenneyDungeonPack_2.3/Characters/Male/Male_7_Run8.png",
+      "sha256": "65a149ca304bd36b7e2326e3ea20f5916377e4d96ebd05e911699a7bce8842bb",
+      "bbox": [
+        98,
+        318,
+        158,
+        435
+      ],
+      "dimensions": [
+        256,
+        512
+      ]
+    }
+  ]
+}
