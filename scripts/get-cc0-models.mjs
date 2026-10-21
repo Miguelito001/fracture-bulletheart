@@ -11,12 +11,19 @@ export const MODELS = [
   'wall','wall-half','wall-narrow','wall-opening','weapon-sword',
   'wood-structure','wood-support'
 ];
+const OTHER = {
+  graveyard:['altar-stone','candle-multiple','character-skeleton','character-ghost','coffin','column-large','crypt-door','fire-basket','gravestone-round','lightpost-single','urn-round','debris','stone-wall-damaged','pillar-square','detail-chalice'],
+  castle:['flag-banner-long','wall-pillar','metal-gate','rocks-small']
+};
 const output = new URL('../public/models/', import.meta.url);
+const sourced = [...MODELS.map(name=>({file:name,model:name,pack:'mini-dungeon'})),
+ ...OTHER.graveyard.map(name=>({file:`grave-${name}`,model:name,pack:'graveyard-kit'})),
+ ...OTHER.castle.map(name=>({file:`castle-${name}`,model:name,pack:'castle-kit'}))];
 await mkdir(output,{recursive:true});
-for (const name of MODELS) {
+for (const {file:name,model,pack} of sourced) {
   const file = new URL(`${name}.glb`,output);
   try { const info=await stat(file); if(info.size>10_000) continue; } catch {}
-  const url=`https://raw.githubusercontent.com/Hidencod/tge-assets/${COMMIT}/packs/mini-dungeon/${name}.glb`;
+  const url=`https://raw.githubusercontent.com/Hidencod/tge-assets/${COMMIT}/packs/${pack}/${model}.glb`;
   let ok=false;
   for(let retry=0;retry<3&&!ok;retry++){
     try {
@@ -28,4 +35,4 @@ for (const name of MODELS) {
     } catch(e) { if(retry===2)throw e;await new Promise(r=>setTimeout(r,1000*(retry+1))); }
   }
 }
-console.log(`CC0 3D models verified: ${MODELS.length} / ${MODELS.length}`);
+console.log(`CC0 3D models verified: ${sourced.length} / ${sourced.length}`);
