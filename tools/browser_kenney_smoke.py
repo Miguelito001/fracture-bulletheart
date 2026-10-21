@@ -17,6 +17,12 @@ try:
   page.wait_for_function("() => typeof KENNEY_IDS !== 'undefined' && KENNEY_IDS.every(id=>assets['kenney-'+id]?.complete)",timeout=30000)
   missing=page.evaluate("() => KENNEY_IDS.filter(id=>!assets['kenney-'+id].naturalWidth)")
   assert not missing,'Missing Kenney images: '+str(missing)
+
+  page.wait_for_function("() => typeof KENNEY_CHARACTER_FRAMES !== 'undefined' && Array.from({length:8},(_,d)=>KENNEY_CHARACTER_FRAMES.map(f=>'kenney-male-'+d+'-'+f)).flat().every(k=>assets[k]?.complete)",timeout=30000)
+  missing_chars=page.evaluate("() => Array.from({length:8},(_,d)=>KENNEY_CHARACTER_FRAMES.map(f=>'kenney-male-'+d+'-'+f)).flat().filter(k=>!assets[k].naturalWidth)")
+  assert not missing_chars,'Missing real Kenney character frames: '+str(missing_chars)
+  print('KENNEY CHARACTER PNG LOADED:',48,flush=True)
+
   data=page.evaluate("() => ({count:KENNEY_IDS.length,mode,hub:hubActive,frame:document.querySelector('#scene').width})")
   print('KENNEY PNG LOADED:',data,flush=True);assert data['count']==48 and data['hub'] and data['frame']>0
   page.screenshot(path=str(ROOT/'artpass-hub-smoke.png'))
