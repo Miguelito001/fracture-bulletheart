@@ -34,6 +34,7 @@ function cc0(id,x,y,scale=1,z=0,alpha=1){
   const image=blockImgs[id];if(!image?.complete||!image.naturalWidth)return false;
   const p=pos(x,y,z),w=109*scale,height=128*scale;
   g.save();g.globalAlpha=alpha;g.imageSmoothingEnabled=true;
+  g.filter=["09","11","12"].includes(id)?"brightness(.69) saturate(.72) sepia(.14)":id==="15"?"brightness(.72) saturate(1.3) sepia(.17) hue-rotate(169deg)":"none";
   g.drawImage(image,p.x-w/2,p.y-height+25*scale,w,height);g.restore();return true;
 }
 function theme(){return hubActive?PALETTES[0]:PALETTES[(Math.max(1,run?.floor||1)-1)%PALETTES.length];}
