@@ -116,6 +116,21 @@ try:
   page.screenshot(path=str(ROOT/'artpass-dungeon-smoke.png'))
   page.evaluate("() => {const r=rooms.find(r=>r.kind==='battle');if(r){px=r.cx;py=r.cy;visitRoom(r);}}")
   page.wait_for_timeout(450)
+  gate=page.evaluate("""() => {
+    const battle=rooms.find(r=>r.kind==='battle'&&r.active);
+    if(!battle)return {exists:false};
+    const next=rooms[battle.connections[0]];
+    const horizontal=Math.abs(next.cx-battle.cx)>Math.abs(next.cy-battle.cy);
+    const gx=horizontal?battle.cx+Math.sign(next.cx-battle.cx)*T*6.25:battle.cx;
+    const gy=horizontal?battle.cy:battle.cy+Math.sign(next.cy-battle.cy)*T*4.25;
+    const blocked=combatGateCollision(gx,gy,12);
+    battle.active=false;
+    const unblocked=!combatGateCollision(gx,gy,12);
+    battle.active=true;
+    return {exists:true,blocked,unblocked};
+  }""")
+  assert gate['exists'] and gate['blocked'] and gate['unblocked'],gate
+  print('VISIBLE COMBAT GATE PHYSICS OK:',gate,flush=True)
   page.screenshot(path=str(ROOT/'artpass-combat-smoke.png'))
   assert not errors,'JS errors: '+str(errors)
   # Return physically to Node Zero and extract an actual material into permanent storage.
