@@ -1,5 +1,5 @@
-// FRACTURE — BULLETHEART ISOV2: playable isometric visual prototype.
-// Player progress is saved locally. No third-party assets at runtime.
+// FRACTURE — BULLETHEART ISOV2.1: Kenney CC0 isometric environment pass.
+// Player progress is saved locally. Kenney CC0 art is bundled locally; no CDN required.
 type XY = {x:number;y:number};
 type RoomKind = 'start'|'battle'|'elite'|'treasure'|'shrine'|'forge'|'heal'|'boss'|'secret';
 type MobKind = 'crawler'|'ranger'|'knight'|'bomber'|'wisp'|'elite'|'boss';
@@ -16,6 +16,9 @@ type Save = {echoes:number;bestFloor:number;bestKills:number;runs:number;wins:nu
 const T=60,W=1280,H=720, el=(s:string)=>document.querySelector(s) as HTMLElement, canvas=el('#scene') as HTMLCanvasElement;
 const g=canvas.getContext('2d')!;g.imageSmoothingEnabled=false;
 const assets:Record<string,HTMLImageElement>={};
+const KENNEY_IDS = ['stoneTile_S','stoneUneven_S','stone_S','stoneMissingTiles_S','dirtTiles_S','planks_S','stoneWall_S','stoneWall_E','stoneWall_N','stoneWall_W','stoneWallBroken_S','stoneWallAged_S','stoneWallArchway_S','stoneWallDoorOpen_S','stoneWallGate_S','stoneWallHalf_S','stoneWallColumn_S','stoneWallTop_S','stoneColumn_S','stoneColumnWood_S','stoneStep_S','stoneSteps_S','barrel_S','barrelsStacked_S','chestClosed_S','chestOpen_S','woodenCrate_S','woodenCrates_S','tableRoundItemsChairs_S','tableShort_S','woodenSupportBeams_S','stairs_S','stoneWallWindow_S','bookcaseBooks_S','bookcaseWideBooks_S','bookcaseWideBooksDesk_S','bookcaseDestroyed_S','bookcaseHalfBooks_S','candleStand_S','candleStandDouble_S','displayCaseSword_S','displayCaseBooks_S','bookStand_S','longTableDecorated_S','floorCarpet_S','floorCarpetSmall_S','wallDoorway_S','libraryChair_S'];
+for(const id of KENNEY_IDS){const a=new Image();a.src='./assets/kenney/'+id+'.png';assets['kenney-'+id]=a;}
+
 for (const id of ['wanderer','swift','bulwark','arcanist','crawler','ranger','knight','bomber','wisp','elite','boss','wall','pillar','chest','torch','altar','potion','menu-art',...Array.from({length:5},(_,i)=>`floor${i}`)]){
   const a=new Image();a.src=`./assets/${id}.png`;assets[id]=a;
 }
@@ -544,9 +547,23 @@ function isoPrism(x:number,y:number,r:number,h:number,top:string,side1:string,si
 function isoGlow(x:number,y:number,r:number,c:string){const p=isoPoint(x,y);g.save();g.globalCompositeOperation='screen';const gradient=g.createRadialGradient(p.x,p.y,0,p.x,p.y,r);gradient.addColorStop(0,c);gradient.addColorStop(1,'#00000000');g.fillStyle=gradient;g.fillRect(p.x-r,p.y-r,2*r,2*r);g.restore();}
 function isoText(text:string,x:number,y:number,size=13,color='#eadbb9'){g.save();g.font=`700 ${size}px Georgia, serif`;g.textAlign='center';g.shadowColor='#030810';g.shadowBlur=9;g.fillStyle=color;g.fillText(text,x,y);g.restore();}
 function isoImg(id:string,x:number,y:number,w:number,h:number,alpha=1){const a=assets[id],p=isoPoint(x,y);g.save();g.globalAlpha=alpha;g.imageSmoothingEnabled=false;if(a?.naturalWidth)g.drawImage(a,Math.round(p.x-w/2),Math.round(p.y-h),w,h);else{g.fillStyle='#c6ad8e';g.fillRect(p.x-w/4,p.y-h,w/2,h);}g.restore();}
+// Kenney Isometric Miniature Dungeon / Library, Creative Commons CC0 1.0.
+// Keep the complete 256x512 registration frame when resizing the original art,
+// so the same ground anchor is shared by floors, walls, furniture and stairs.
+function kenney(id:string,x:number,y:number,scale=1,opacity=1):boolean{
+ const a=assets['kenney-'+id];if(!a?.naturalWidth)return false;
+ const p=isoPoint(x,y),tw=119*scale,th=238*scale;
+ g.save();g.globalAlpha=opacity;g.imageSmoothingEnabled=true;
+ // Source pack's 30/45-degree sprites are registered to their tile base.
+ g.drawImage(a,Math.round(p.x-tw/2),Math.round(p.y-th*.73),tw,th);
+ g.restore();return true;
+}
+function kenneyShadow(x:number,y:number,rx=42,ry=18){const p=isoPoint(x,y);g.save();g.fillStyle='#0810175a';g.beginPath();g.ellipse(p.x,p.y,rx,ry,0,0,Math.PI*2);g.fill();g.restore();}
 function isoCharacter(id:string,x:number,y:number,w:number,h:number,alpha=1){const p=isoPoint(x,y);g.fillStyle='#01040b7a';g.beginPath();g.ellipse(p.x,p.y,Math.max(17,w*.40),Math.max(8,w*.18),0,0,Math.PI*2);g.fill();isoImg(id,x,y+5,w,h,alpha);}
 function isoTorch(x:number,y:number){const p=isoPoint(x,y);g.fillStyle='#564937';g.fillRect(p.x-4,p.y-43,8,39);g.fillStyle='#f9bb6b';g.beginPath();g.ellipse(p.x,p.y-47+Math.sin(globalTime*7+x)*3,6,13,0,0,Math.PI*2);g.fill();g.fillStyle='#fff1bb';g.fillRect(p.x-2,p.y-50,4,6);isoGlow(x,y-90,74,'#ef98562e');}
 function isoWall(x:number,y:number,orient:'north'|'west',height:number){
+ // Replace temporary vector walls with real CC0 carved-stone masonry.
+ if(kenney(orient==='north'?'stoneWall_S':'stoneWall_E', (x+(orient==='north'?.5:0))*T,(y+(orient==='west'?.5:0))*T,1,.98))return;
  const a=orient==='north'?isoPoint(x*T,y*T):isoPoint(x*T,y*T),b=orient==='north'?isoPoint((x+1)*T,y*T):isoPoint(x*T,(y+1)*T);
  const u={x:a.x,y:a.y-height},v={x:b.x,y:b.y-height};
  const z=orient==='north'?'#394453':'#263747';
@@ -565,6 +582,9 @@ function isoFloorTile(tx:number,ty:number,hash:number){
  const cx=(tx+.5)*T,cy=(ty+.5)*T,p=isoPoint(cx,cy);
  if(p.x<-140||p.x>W+140||p.y<-140||p.y>H+140)return false;
  const rx=T*ISO_SX,ry=T*ISO_SY;
+ // Kenney ground tiles fully replace the procedural diamond when available.
+ if(kenney(hash%31===0?'stoneUneven_S':hash%37===0?'stoneMissingTiles_S':hash%19===0?'dirtTiles_S':'stoneTile_S',cx,cy,.93,hubActive?.97:.91)){return true;}
+
  const palette=hubActive?['#303b43','#38454e','#33414b','#3a454b','#36404a','#2d3943']:['#30323f','#333943','#383c48','#313844','#333541','#353a43'];
  const base=palette[hash%palette.length];
  isoPolygon([{x:p.x,y:p.y-ry},{x:p.x+rx,y:p.y},{x:p.x,y:p.y+ry},{x:p.x-rx,y:p.y}],base,'#76818a21');
@@ -574,8 +594,18 @@ function isoFloorTile(tx:number,ty:number,hash:number){
  return true;
 }
 function isoRug(x:number,y:number,rx:number,ry:number,c:string){const p=isoPoint(x,y);isoPolygon([{x:p.x,y:p.y-ry},{x:p.x+rx,y:p.y},{x:p.x,y:p.y+ry},{x:p.x-rx,y:p.y}],c,'#d9bf8070',3);isoPolygon([{x:p.x,y:p.y-ry*.68},{x:p.x+rx*.68,y:p.y},{x:p.x,y:p.y+ry*.68},{x:p.x-rx*.68,y:p.y}],'#211e3188','#d9bf8055',1);}
-function isoCrate(x:number,y:number,r=23){const p=isoPrism(x,y,r,32,'#93734d','#604932','#73553a');g.strokeStyle='#c8a46b';g.lineWidth=3;g.strokeRect(p.x-10,p.y-4,20,6);}
+function isoCrate(x:number,y:number,r=23){if(kenney('woodenCrate_S',x,y,r/23)){kenneyShadow(x,y,r*1.2,r*.65);return;} const p=isoPrism(x,y,r,32,'#93734d','#604932','#73553a');g.strokeStyle='#c8a46b';g.lineWidth=3;g.strokeRect(p.x-10,p.y-4,20,6);}
 function isoForge(x:number,y:number){
+ if(assets['kenney-stoneTile_S']?.naturalWidth){
+  kenneyShadow(x,y+24,122,51);
+  kenney('stoneWallArchway_S',x-80,y-60,1.55);kenney('woodenSupportBeams_S',x+76,y-44,1.30);
+  kenney('barrel_S',x-74,y+56,.83);kenney('woodenCrates_S',x+96,y+59,.92);
+  kenney('tableShort_S',x+6,y+45,1.18);kenney('stoneColumnWood_S',x-23,y-1,.89);
+  isoGlow(x-13,y-42,148,'#ff863136');
+  const p=isoPoint(x-13,y-10);g.save();g.shadowColor='#ff943f';g.shadowBlur=28;g.fillStyle='#f9b76e';g.beginPath();g.ellipse(p.x,p.y-57,15,28,0,0,Math.PI*2);g.fill();g.restore();
+  isoCharacter('bulwark',x+70,y-13,49,62,.95);return;
+ }
+
  isoRug(x+15,y+38,88,40,'#45362b');
  const p=isoPrism(x-25,y-16,43,70,'#555b60','#2e303a','#414651');
  g.fillStyle='#1a1d27';g.fillRect(p.x-27,p.y+10,54,45);g.fillStyle='#eb773c';g.fillRect(p.x-19,p.y+18,38,27);g.fillStyle='#ffe0a0';g.fillRect(p.x-9,p.y+25,18,16);g.shadowColor='#f17a33';g.shadowBlur=20;g.fillStyle='#ffb964';g.fillRect(p.x-20,p.y+16,40,4);g.shadowBlur=0;
@@ -586,6 +616,13 @@ function isoForge(x:number,y:number){
  isoGlow(x-25,y-16,165,'#f68d3b39');
 }
 function isoMerchant(x:number,y:number){
+ if(assets['kenney-stoneTile_S']?.naturalWidth){
+  kenney('woodenSupportBeams_S',x-90,y-45,1.55);kenney('woodenSupportBeams_S',x+90,y-45,1.55);
+  kenney('tableRoundItemsChairs_S',x,y+24,1.6);kenney('barrelsStacked_S',x-83,y+66,1.02);
+  kenney('chestClosed_S',x+99,y+62,.83);kenney('woodenCrate_S',x+39,y+85,.84);
+  isoGlow(x,y,90,'#e9af5920');isoCharacter('wanderer',x-32,y-45,47,64,.99);return;
+ }
+
  isoRug(x,y+35,114,54,'#4e3135');
  isoPrism(x-5,y+14,66,31,'#9c7950','#654b35','#76543d');
  const p=isoPoint(x,y+14);
@@ -596,24 +633,60 @@ function isoMerchant(x:number,y:number){
  isoCrate(x+85,y+43,17);isoCrate(x-88,y+48,19);
 }
 function isoArchive(x:number,y:number){
+ if(assets['kenney-stoneTile_S']?.naturalWidth){
+  kenney('bookcaseWideBooks_S',x-88,y-49,1.40);
+  kenney('bookcaseBooks_S',x-8,y-86,1.45);
+  kenney('bookcaseWideBooksDesk_S',x+90,y-47,1.40);
+  kenney('bookStand_S',x+9,y+72,1.1);
+  kenney('candleStandDouble_S',x-81,y+79,.82);
+  isoGlow(x,y-58,130,'#a18bff28');return;
+ }
+
  isoRug(x,y+38,103,55,'#343455');
  for(const off of [-58,5,67]){const p=isoPrism(x+off,y-30,25,115,'#725b51','#3f3443','#504358');g.fillStyle='#bd9871';for(let row=0;row<3;row++)for(let b=0;b<4;b++){g.fillRect(p.x-15+b*8,p.y+10+row*24,5,17);}}
  const lect=isoPrism(x,y+58,31,37,'#8b795a','#534337','#66503a');const p=isoPoint(x,y+56);g.fillStyle='#ded6b1';g.fillRect(p.x-21,p.y-53,42,24);g.strokeStyle='#aa936d';g.strokeRect(p.x-21,p.y-53,42,24);
  isoTorch(x-108,y-22);isoGlow(x,y+18,118,'#9891ec23');
 }
 function isoVault(x:number,y:number){
+ if(assets['kenney-stoneTile_S']?.naturalWidth){
+  kenney('stoneWallDoorOpen_S',x,y-115,1.35);
+  kenney('chestClosed_S',x-76,y+43,1.15);kenney('chestClosed_S',x+69,y+43,1.15);
+  kenney('woodenCrates_S',x+7,y+88,1.07);
+  kenney('barrel_S',x-115,y+71,.77);
+  isoGlow(x,y,100,'#81c9a72a');return;
+ }
+
  isoRug(x,y+23,112,52,'#2e514b');
  isoPrism(x-71,y-17,28,64,'#6e6864','#454648','#53575a');isoPrism(x+71,y-17,28,64,'#6e6864','#454648','#53575a');
  for(const off of [-44,0,43]){const p=isoPrism(x+off,y+14,22,34,'#92734b','#5d4635','#6b5039');g.fillStyle='#e5c88d';g.fillRect(p.x-8,p.y+2,16,9);g.fillStyle='#22202a';g.fillRect(p.x-3,p.y+4,6,7);}
  isoGlow(x,y+17,100,'#68c6a724');
 }
 function isoAltar(x:number,y:number){
+ if(assets['kenney-stoneTile_S']?.naturalWidth){
+  kenney('stoneColumn_S',x-71,y-22,1.12);kenney('stoneColumn_S',x+71,y-22,1.12);
+  kenney('displayCaseSword_S',x,y+36,1.36);
+  kenney('candleStand_S',x-94,y+55,.9);kenney('candleStand_S',x+94,y+55,.9);
+  isoGlow(x,y-55,132,'#af86ff38');return;
+ }
+
  isoRug(x,y+38,105,58,'#3f2a43');
  isoPrism(x,y,55,29,'#666078','#383247','#4a3c50');
  const p=isoPoint(x,y);g.save();g.shadowColor='#c3a0f2';g.shadowBlur=22;g.fillStyle='#c5a6fa';g.beginPath();g.moveTo(p.x,p.y-120);g.lineTo(p.x+20,p.y-83);g.lineTo(p.x,p.y-42);g.lineTo(p.x-20,p.y-83);g.closePath();g.fill();g.restore();isoGlow(x,y-100,110,'#a98dff3c');
  for(const a of [0,Math.PI/2,Math.PI,Math.PI*1.5]){const z=isoPoint(x+Math.cos(a)*80,y+Math.sin(a)*80);g.fillStyle='#ddc5a0';g.beginPath();g.arc(z.x,z.y-3,4,0,Math.PI*2);g.fill();}
 }
 function isoPortal(x:number,y:number){
+ if(assets['kenney-stoneTile_S']?.naturalWidth){
+  kenney('stoneWallArchway_S',x,y-33,2.25);
+  kenney('stoneWallColumn_S',x-99,y-40,1.12);kenney('stoneWallColumn_S',x+99,y-40,1.12);
+  const p=isoPoint(x,y-25),wave=Math.sin(globalTime*1.8)*5;
+  g.save();g.shadowColor='#a58aff';g.shadowBlur=33;
+  const grad=g.createRadialGradient(p.x-8,p.y-85,6,p.x,p.y-85,85);
+  grad.addColorStop(0,'#a5a9e4f0');grad.addColorStop(.4,'#553a8bdc');grad.addColorStop(.8,'#201537bc');grad.addColorStop(1,'#120d2290');
+  g.fillStyle=grad;g.beginPath();g.ellipse(p.x,p.y-85,38+wave*.45,64+wave,0,0,Math.PI*2);g.fill();g.restore();
+  isoGlow(x,y-95,176,'#986cf739');
+  kenney('stoneSteps_S',x,y+92,1.55);return;
+ }
+
  isoRug(x,y+49,126,68,'#31304c');
  isoPrism(x-77,y-25,22,136,'#81768f','#4c435d','#5d5071');isoPrism(x+77,y-25,22,136,'#81768f','#4c435d','#5d5071');
  const p=isoPoint(x,y-25),wave=Math.sin(globalTime*1.8)*6;
@@ -627,13 +700,14 @@ function isoPortal(x:number,y:number){
 }
 function isoStation(id:string,x:number,y:number){if(id==='portal')isoPortal(x,y);else if(id==='forge')isoForge(x,y);else if(id==='merchant')isoMerchant(x,y);else if(id==='archive')isoArchive(x,y);else if(id==='vault')isoVault(x,y);else isoAltar(x,y);}
 function isoDungeonDecor(r:Room){if(!r.seen)return;const p=isoPoint(r.cx,r.cy);if(p.x<-450||p.x>W+450||p.y<-360||p.y>H+300)return;
+ if(assets['kenney-stoneTile_S']?.naturalWidth){const pairs=r.kind==='boss'?[[160,-115],[-160,115]]:r.kind==='elite'?[[110,-90],[-110,90]]:r.kind==='battle'?[[140,-95]]:[];for(const [dx,dy] of pairs)kenney(r.kind==='battle'?'barrelsStacked_S':'stoneColumn_S',r.cx+dx,r.cy+dy,1.3);if(r.kind==='secret')kenney('bookcaseDestroyed_S',r.cx+120,r.cy-80,1.3);}
  if(r.kind==='boss'||r.kind==='elite'){isoRug(r.cx,r.cy,150,77,r.kind==='boss'?'#612d41':'#614737');}
  else if(r.kind==='treasure'){isoRug(r.cx,r.cy,93,45,'#56432d');}
  else if(r.kind==='start'){isoRug(r.cx,r.cy,99,52,'#39344f');}
  if(r.kind==='start'){isoPortal(r.cx,r.cy-30);if(distance({x:px,y:py},{x:r.cx,y:r.cy})<140)isoText(run.floor===1?'[ E ] VOLTAR AO REFÚGIO':'[ E ] ANDAR ANTERIOR',p.x,p.y-190,14,'#ddd1ff');}
  else if((r.kind==='boss'&&!r.active)||r.kind==='shrine'||r.kind==='secret')isoAltar(r.cx,r.cy);
  else if(r.kind==='forge')isoForge(r.cx,r.cy);
- else if(r.kind==='treasure'&&!r.collected)isoCrate(r.cx,r.cy,34);
+ else if(r.kind==='treasure'&&!r.collected){if(!kenney('chestClosed_S',r.cx,r.cy,1.35))isoCrate(r.cx,r.cy,34);}
  if(r.kind==='boss'&&r.cleared){isoGlow(r.cx,r.cy,150,'#bf99ff33');isoText('[ E ] DESCER',p.x,p.y-130,14,'#f5d8c0');}
  if(r.active){for(const n of r.connections){const other=rooms[n],ang=Math.atan2(other.cy-r.cy,other.cx-r.cx);const v=vec(ang,T*7.3),q=isoPoint(r.cx+v.x,r.cy+v.y);g.strokeStyle='#ec7b86bb';g.lineWidth=8;g.beginPath();g.moveTo(q.x-20,q.y-4);g.lineTo(q.x+20,q.y+4);g.stroke();}}
 }
@@ -674,7 +748,7 @@ function drawIsoWorld(){
   if(!world.has(tileKey(x-1,y)))queue.push({depth:x*T+y*T-1,render:()=>isoWall(x,y,'west',hubActive?78:84)});
   if(!world.has(tileKey(x,y+1)))queue.push({depth:wx+wy+T/2,render:()=>isoEdge(x,y,'south')});
   if(!world.has(tileKey(x+1,y)))queue.push({depth:wx+wy+T/2,render:()=>isoEdge(x,y,'east')});
-  if(blocked.has(tileKey(x,y)))queue.push({depth:wx+wy+30,render:()=>{isoPrism(wx,wy,21,83,'#75767b','#434953','#59616b');if(h%3===0)isoTorch(wx,wy);}});
+  if(blocked.has(tileKey(x,y)))queue.push({depth:wx+wy+30,render:()=>{if(!kenney(h%5===0?'stoneColumn_S':h%5===1?'barrel_S':h%5===2?'woodenCrates_S':'stoneWallColumn_S',wx,wy,1.07)){isoPrism(wx,wy,21,83,'#75767b','#434953','#59616b');}if(h%7===0)isoTorch(wx,wy);}});
   if(hubActive){if(h%91===0){queue.push({depth:wx+wy,render:()=>{const p=isoPoint(wx,wy);g.fillStyle='#9ca9a035';g.fillRect(p.x-2,p.y-8,5,4);}});}}
  }
  if(hubActive){for(const s of hubStations)queue.push({depth:s.x+s.y,render:()=>isoStation(s.id,s.x,s.y)});for(const [dx,dy] of [[-720,-305],[720,-305],[-700,295],[700,295],[-150,-340],[150,-340],[-150,370],[150,370]]){const x=HUB.x+dx,y=HUB.y+dy;queue.push({depth:x+y,render:()=>isoTorch(x,y)});}}
