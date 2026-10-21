@@ -346,6 +346,23 @@ class Fracture {
    if(!gun&&dist<range&&a<angle)this.hitEnemy(e,19*(this.progress.unlocks.includes('forge')?1.12:1));
   }
   if(gun&&nearest)this.hitEnemy(nearest,15);
+  if(gun){
+    // A short-lived projectile tracer follows the real ray aim/hit direction,
+    // distinct from the sword's wide impact ring.
+    const dist=nearest?Math.max(1,distBest):8.5;
+    const origin=new THREE.Vector3(p.x+dir.x*.7,1.32,p.z+dir.z*.7);
+    const tip=new THREE.Vector3(p.x+dir.x*dist,1.28,p.z+dir.z*dist);
+    const segment=tip.clone().sub(origin),tracer=new THREE.Mesh(
+      new THREE.CylinderGeometry(.045,.075,segment.length(),6),
+      new THREE.MeshBasicMaterial({color:0xa9f6ff,transparent:true,opacity:.92,depthWrite:false})
+    );
+    tracer.position.copy(origin).add(tip).multiplyScalar(.5);
+    tracer.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),segment.normalize());
+    this.worldGroup.add(tracer);this.fx.push({mesh:tracer,time:.105,max:.105});
+    const flash=new THREE.Mesh(new THREE.SphereGeometry(.17,8,8),
+      new THREE.MeshBasicMaterial({color:0xffdca0,transparent:true,opacity:1,depthWrite:false}));
+    flash.position.copy(origin);this.worldGroup.add(flash);this.fx.push({mesh:flash,time:.12,max:.12});
+  }
   this.pulse(p.x+dir.x*2.4,p.z+dir.z*2.4,gun?0x7bdff7:0xffdd96,gun?.24:.50);
   this.playMotion(this.heroAnimations,this.heroAnimationState,gun?'shoot':'attack');this.heroAnimationState=gun?'shoot':'attack';
   this.updateHUD();
@@ -556,6 +573,9 @@ class Fracture {
   this.elapsed+=dt;this.hitCooldown=Math.max(0,this.hitCooldown-dt);this.attackCooldown=Math.max(0,this.attackCooldown-dt);
   this.dashCooldown=Math.max(0,this.dashCooldown-dt);this.invuln=Math.max(0,this.invuln-dt);
   if(this.mode==='hub'||this.mode==='playing'){
+   this.audio.update(dt,this.worldType);
+   if(this.isMoving){this.stepTimer-=dt;if(this.stepTimer<=0){this.audio.play('step');this.stepTimer=.33;}}
+   else this.stepTimer=.08;
    this.updateMovement(dt);
    if(this.mode==='playing'){this.triggerRooms();this.updateEnemies(dt);}
    this.physics.timestep=dt;this.physics.step();this.updateVisuals(dt);
@@ -576,6 +596,10 @@ class Fracture {
   $('echoes').textContent=`${this.progress.echoes}`;
   $('materials').textContent=`FERRO ${this.materials.iron} · BRASAS ${this.materials.embers}`;
   $('stance').textContent=this.weapon==='blade'?'LÂMINA ERRANTE':'REVÓLVER DE ECOS';
+  for(const b of document.querySelectorAll('.weapon-group button')){
+   const active=b.dataset.action===this.weapon;b.classList.toggle('equipped',active);
+   b.setAttribute('aria-pressed',String(active));
+  }
   $('roomname').textContent=this.worldType==='hub'?'CÂMARA ÂNCORA':(this.rooms[this.roomIndex]?.layout.name||'CRIPTA');
   $('controls').textContent=this.worldType==='hub'?'WASD MOVER · E INTERAGIR · PORTAL AO CENTRO':'WASD MOVER · MOUSE MIRAR · CLIQUE ATACAR · ESPAÇO ESQUIVAR · 1/2 ARMA · H POÇÃO · E EXTRAÇÃO';
   $('status').textContent=this.mode==='hub'?'REFÚGIO SEGURO':this.gates.length?'SALA SELADA':'EXPLORAÇÃO';
