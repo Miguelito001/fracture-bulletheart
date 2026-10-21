@@ -94,8 +94,11 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  // Shooting is visibly different and has its own distinct sampled Web Audio cue.
  await page.evaluate(()=>{
    const g=window.__FRACTURE3D__,p=g.playerBody.translation();
+   // Exclude the wounded melee-test enemy from target selection. A revolver
+   // shot correctly prioritizes the nearest living opponent in its firing arc.
+   for(const oldEnemy of g.enemyUnits)oldEnemy.hp=0;
    g.spawnEnemy(g.rooms[0],11,7,'orc');
-   const e=g.enemyUnits.at(-1);e.body.setNextKinematicTranslation({x:p.x+4,y:1.03,z:p.z});
+   const e=g.enemyUnits.at(-1);e.body.setNextKinematicTranslation({x:p.x+2.8,y:1.03,z:p.z});
    g.physics.step();g.aim.set(1,0,0);g.attackCooldown=0;
  });
  await page.keyboard.press('Digit2');
