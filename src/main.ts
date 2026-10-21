@@ -19,6 +19,13 @@ const assets:Record<string,HTMLImageElement>={};
 const KENNEY_IDS = ['stoneTile_S','stoneUneven_S','stone_S','stoneMissingTiles_S','dirtTiles_S','planks_S','stoneWall_S','stoneWall_E','stoneWall_N','stoneWall_W','stoneWallBroken_S','stoneWallAged_S','stoneWallArchway_S','stoneWallDoorOpen_S','stoneWallGate_S','stoneWallHalf_S','stoneWallColumn_S','stoneWallTop_S','stoneColumn_S','stoneColumnWood_S','stoneStep_S','stoneSteps_S','barrel_S','barrelsStacked_S','chestClosed_S','chestOpen_S','woodenCrate_S','woodenCrates_S','tableRoundItemsChairs_S','tableShort_S','woodenSupportBeams_S','stairs_S','stoneWallWindow_S','bookcaseBooks_S','bookcaseWideBooks_S','bookcaseWideBooksDesk_S','bookcaseDestroyed_S','bookcaseHalfBooks_S','candleStand_S','candleStandDouble_S','displayCaseSword_S','displayCaseBooks_S','bookStand_S','longTableDecorated_S','floorCarpet_S','floorCarpetSmall_S','wallDoorway_S','libraryChair_S'];
 for(const id of KENNEY_IDS){const a=new Image();a.src='./assets/kenney/'+id+'.png';assets['kenney-'+id]=a;}
 
+const KENNEY_CHARACTER_FRAMES=['Idle0','Run0','Run2','Run4','Run6','Run8'];
+for(let d=0;d<8;d++)for(const f of KENNEY_CHARACTER_FRAMES){
+ const key=`kenney-male-${d}-${f}`;
+ const a=new Image();a.src=`./assets/kenney/characters/Male_${d}_${f}.png`;assets[key]=a;
+}
+
+
 for (const id of ['wanderer','swift','bulwark','arcanist','crawler','ranger','knight','bomber','wisp','elite','boss','wall','pillar','chest','torch','altar','potion','menu-art',...Array.from({length:5},(_,i)=>`floor${i}`)]){
   const a=new Image();a.src=`./assets/${id}.png`;assets[id]=a;
 }
@@ -559,7 +566,29 @@ function kenney(id:string,x:number,y:number,scale=1,opacity=1):boolean{
  g.restore();return true;
 }
 function kenneyShadow(x:number,y:number,rx=42,ry=18){const p=isoPoint(x,y);g.save();g.fillStyle='#0810175a';g.beginPath();g.ellipse(p.x,p.y,rx,ry,0,0,Math.PI*2);g.fill();g.restore();}
-function isoCharacter(id:string,x:number,y:number,w:number,h:number,alpha=1){const p=isoPoint(x,y);g.fillStyle='#01040b7a';g.beginPath();g.ellipse(p.x,p.y,Math.max(17,w*.40),Math.max(8,w*.18),0,0,Math.PI*2);g.fill();isoImg(id,x,y+5,w,h,alpha);}
+let heroDirection=0,lastHeroX=Number.NaN,lastHeroY=Number.NaN;
+function isoCharacter(id:string,x:number,y:number,w:number,h:number,alpha=1){
+ const p=isoPoint(x,y);g.fillStyle='#01040b7a';g.beginPath();g.ellipse(p.x,p.y,Math.max(17,w*.4),Math.max(8,w*.18),0,0,Math.PI*2);g.fill();
+ if(['wanderer','bulwark','arcanist','knight','elite'].includes(id)){
+  let moving=false,dir=0;
+  if(Math.abs(x-px)<1&&Math.abs(y-py)<1){
+   const dx=x-lastHeroX,dy=y-lastHeroY;
+   moving=Number.isFinite(dx)&&Math.hypot(dx,dy)>.7;
+   if(moving)heroDirection=((Math.round(Math.atan2(dy,dx)/(Math.PI/4))+8)%8);
+   lastHeroX=x;lastHeroY=y;dir=heroDirection;
+  }else{dir=id==='knight'?3:id==='elite'?5:2;}
+  const seq=moving?'Run'+[0,2,4,6,8][Math.floor(globalTime*10)%5]:'Idle0';
+  const actor=assets[`kenney-male-${dir}-${seq}`];
+  if(actor?.naturalWidth){
+   g.save();g.globalAlpha=alpha;g.imageSmoothingEnabled=true;
+   const color=id==='arcanist'?'hue-rotate(58deg) saturate(1.25)':id==='bulwark'?'sepia(.28) saturate(1.4)':id==='elite'?'hue-rotate(290deg) contrast(1.18)':id==='knight'?'brightness(.76) saturate(.8)':'none';
+   g.filter=color;
+   const dw=w*1.30,dh=h*1.53;g.drawImage(actor,p.x-dw/2,p.y-dh*.85,dw,dh);
+   g.restore();return;
+  }
+ }
+ isoImg(id,x,y+5,w,h,alpha);
+}
 function isoTorch(x:number,y:number){const p=isoPoint(x,y);g.fillStyle='#564937';g.fillRect(p.x-4,p.y-43,8,39);g.fillStyle='#f9bb6b';g.beginPath();g.ellipse(p.x,p.y-47+Math.sin(globalTime*7+x)*3,6,13,0,0,Math.PI*2);g.fill();g.fillStyle='#fff1bb';g.fillRect(p.x-2,p.y-50,4,6);isoGlow(x,y-90,74,'#ef98562e');}
 function isoWall(x:number,y:number,orient:'north'|'west',height:number){
  // Replace temporary vector walls with real CC0 carved-stone masonry.
