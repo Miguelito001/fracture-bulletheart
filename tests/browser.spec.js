@@ -117,10 +117,12 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  const gunResult=await page.evaluate(()=>{
   const g=window.__FRACTURE3D__;
   return {hp:g.enemyUnits.at(-1).hp,model:g.heroGun.visible,blade:g.heroSword.visible,
-   attack:g.lastAttack,volume:g.audio.master?.gain.value,sfx:g.audio.started,
+   attack:g.lastAttack,volume:g.audio.master?.gain.value,sfx:g.audio.started,trace:g.lastGunShot,
+   aim:g.aim.toArray(),pointer:g.pointer.toArray(),lineOfSight:g.lineOfSight(g.playerBody.translation().x,g.playerBody.translation().z,g.enemyUnits.at(-1).x,g.enemyUnits.at(-1).z),
    tracer:g.fx.some(x=>x.mesh.geometry?.type==='CylinderGeometry')};
  });
- expect(gunResult.hp).toBeLessThan(gunEnemyBefore);
+ console.log('GUN_TARGET_DIAGNOSTIC',JSON.stringify(gunResult));
+ expect(gunResult.hp,JSON.stringify(gunResult)).toBeLessThan(gunEnemyBefore);
  expect(gunResult.model).toBe(true);expect(gunResult.blade).toBe(false);
  expect(gunResult.attack).toBe('gun');expect(gunResult.sfx).toBe(true);
  expect(gunResult.tracer).toBe(true);
