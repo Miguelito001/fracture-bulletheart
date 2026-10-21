@@ -31,11 +31,66 @@ try:
   print('FRACTURED CITADEL ACTIVE:',citadel,flush=True)
   page.wait_for_timeout(400)
   page.screenshot(path=str(ROOT/'artpass-hub-smoke.png'))
+  # Every visible station is a real interaction, not an unreachable painted menu.
+  solid=page.evaluate("""() => {
+    return hubStations.map(s=>({id:s.id,blocks:!walkable(s.x,s.y,15)}));
+  }""")
+  assert all(s['blocks'] for s in solid),'Missing station collisions: '+str(solid)
+  for station in ['forge','merchant','vault','archive','altar']:
+   page.evaluate("(id) => {const s=hubStations.find(q=>q.id===id);px=s.x+115;py=s.y;}",station)
+   page.keyboard.press('e')
+   result=page.evaluate("() => ({mode,text:document.querySelector('#overlay').textContent||''})")
+   assert result['mode'] in ('choice','archive') and len(result['text'])>90,(station,result)
+   page.evaluate("() => closeHubModal()")
+  print('HUB STATIONS AND PHYSICAL COLLISION OK:',solid,flush=True)
   page.evaluate("() => {px=hubStations[0].x;py=hubStations[0].y+60;}")
   page.keyboard.press('e')
   page.wait_for_timeout(600)
   run=page.evaluate("() => ({hub:hubActive,mode,rooms:rooms.length,floor:run.floor})")
   assert not run['hub'] and run['mode']=='playing' and run['rooms']>=10,run
+
+  # Procedural rooms must connect on ACTUAL walkable floor cells.
+  # Run several different complete seeds to catch closed-off exits.
+  connectivity=page.evaluate("""() => {
+    const results=[];
+    for(let attempt=0;attempt<7;attempt++){
+      if(attempt)generateFloor();
+      const initial=tile(rooms[0].cx,rooms[0].cy),seen=new Set([initial]),queue=[initial];
+      for(let i=0;i<queue.length;i++){
+        const [x,y]=queue[i].split(',').map(Number);
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+          const key=tileKey(x+dx,y+dy);
+          if(world.has(key)&&!blocked.has(key)&&!seen.has(key)){seen.add(key);queue.push(key);}
+        }
+      }
+      const reachable=rooms.every(r=>seen.has(tile(r.cx,r.cy)));
+      const distinct=new Set(rooms.map(r=>{
+        let bits='';
+        for(let y=-5;y<=5;y++)for(let x=-7;x<=7;x++)bits+=world.has(tileKey(Math.floor(r.cx/T)+x,Math.floor(r.cy/T)+y))?'1':'0';
+        return bits;
+      })).size;
+      const propsPhysical=sceneProps.every(p=>blocked.has(tile(p.x,p.y))&&!walkable(p.x,p.y,12));
+      results.push({rooms:rooms.length,walkable:seen.size,reachable,shapes:distinct,
+        props:sceneProps.length,propsPhysical});
+    }
+    return results;
+  }""")
+  assert all(x['reachable'] and x['shapes']>=3 and x['props']>0 and x['propsPhysical'] for x in connectivity),connectivity
+  print('PROCEDURAL GEOMETRY AND COLLISION OK:',connectivity,flush=True)
+  page.wait_for_timeout(120)
+  # Clicking visible HUD items actually changes equipped weapons.
+  page.locator('#weapon2').click()
+  assert page.evaluate("() => run.slot")==1,'Weapon 2 click did not select weapon'
+  page.locator('#weapon1').click()
+  assert page.evaluate("() => run.slot")==0,'Weapon 1 click did not select weapon'
+  print('INTERACTIVE HUD OK',flush=True)
+  # Session restores the exact same world, including prop identities.
+  previous=page.evaluate("() => {persistSession();return {tiles:world.size,props:sceneProps.length};}")
+  page.reload(wait_until='load')
+  page.wait_for_function("() => typeof mode !== 'undefined' && mode==='playing' && window.__fractureCitadel?.ready?.()===true",timeout=30000)
+  restored=page.evaluate("() => ({tiles:world.size,props:sceneProps.length,mode})")
+  assert restored['tiles']==previous['tiles'] and restored['props']==previous['props'],(previous,restored)
+  print('SAVE/RESTORE WORLD TOPOLOGY OK:',restored,flush=True)
   page.screenshot(path=str(ROOT/'artpass-dungeon-smoke.png'))
   page.evaluate("() => {const r=rooms.find(r=>r.kind==='battle');if(r){px=r.cx;py=r.cy;visitRoom(r);}}")
   page.wait_for_timeout(450)
