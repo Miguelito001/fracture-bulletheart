@@ -109,6 +109,22 @@ function structureCollision(x:number,y:number,r=0){
  return structuralColliders.some(p=>Math.hypot(p.x-x,p.y-y)<p.r+r);
 }
 
+function combatGateCollision(x:number,y:number,r=0){
+ if(!current?.active)return false;
+ for(const to of current.connections){
+  const next=rooms[to];if(!next)continue;
+  const eastWest=Math.abs(next.cx-current.cx)>Math.abs(next.cy-current.cy);
+  if(eastWest){
+   const gx=current.cx+(next.cx>current.cx?1:-1)*T*6.25;
+   if(Math.abs(x-gx)<21+r&&Math.abs(y-current.cy)<T*2.28+r)return true;
+  }else{
+   const gy=current.cy+(next.cy>current.cy?1:-1)*T*4.25;
+   if(Math.abs(y-gy)<21+r&&Math.abs(x-current.cx)<T*2.28+r)return true;
+  }
+ }
+ return false;
+}
+
 function stationCollision(x:number,y:number,r:number){
  if(!hubActive)return false;
  return hubStations.some(s=>Math.hypot(x-s.x,y-s.y)<r+(
@@ -121,7 +137,7 @@ function addSceneProp(tx:number,ty:number,kind:SceneProp['kind']){
  blocked.add(key);sceneProps.push(p);return true;
 }
 function walkable(x:number,y:number,r=16){
- if(stationCollision(x,y,r)||structureCollision(x,y,r))return false;
+ if(stationCollision(x,y,r)||structureCollision(x,y,r)||combatGateCollision(x,y,r))return false;
  return floorAt(x-r,y-r)&&floorAt(x+r,y-r)&&floorAt(x-r,y+r)&&floorAt(x+r,y+r);
 }
 // Move in short, safe steps. The previous small-radius fallback could leave the player inside a wall.
@@ -500,7 +516,7 @@ function updateEnemies(dt:number){for(const m of mobs){if(m.dead)continue;m.cd-=
  }
 }
 function updateShots(dt:number){for(let i=shots.length-1;i>=0;i--){const s=shots[i];s.life-=dt;if(s.life<=0){shots.splice(i,1);continue;}s.x+=s.vx*dt;s.y+=s.vy*dt;
- if(!floorAt(s.x,s.y)||structureCollision(s.x,s.y,s.r)){shots.splice(i,1);burst(s.x,s.y,s.enemy?'#e48ea9':'#f4d695',3,70);continue;}
+ if(!floorAt(s.x,s.y)||structureCollision(s.x,s.y,s.r)||combatGateCollision(s.x,s.y,s.r)){shots.splice(i,1);burst(s.x,s.y,s.enemy?'#e48ea9':'#f4d695',3,70);continue;}
  if(s.enemy){if(distance(s,{x:px,y:py})<s.r+15){damagePlayer(s.damage);shots.splice(i,1);}continue;}
  for(const m of mobs){if(m.dead||s.hit.has(m.id)||distance(s,m)>s.r+m.radius)continue;s.hit.add(m.id);hurt(m,s.damage,s.kind);s.pierce--;burst(s.x,s.y,'#f5d38a',4,90);if(s.pierce<0){shots.splice(i,1);break;}if(run.bounce&&!m.dead){const o=mobs.find(o=>!o.dead&&o!==m&&distance(o,m)<200);if(o){const v=vec(angle(s,o),Math.hypot(s.vx,s.vy));s.vx=v.x;s.vy=v.y;}}}
  for(const m of mobs){if(s.enemy||s.pierce<0||!m.shield||m.kind!=='boss')continue;for(const an of [...m.anchors]){if(distance(s,an)<s.r+24){damageAnchor(an.x,an.y,18,s.damage);s.pierce--;break;}}}
@@ -509,9 +525,7 @@ function updatePlayer(dt:number){attackCD=Math.max(0,attackCD-dt);dashCD=Math.ma
  let dx=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),dy=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));const direction=isoMove(dx,dy);dx=direction.x;dy=direction.y;
  if(dashTime>0){dashTime-=dt;moveWithCollision({get x(){return px;},set x(v:number){px=v;},get y(){return py;},set y(v:number){py=v;}},dashDir.x*710*dt,dashDir.y*710*dt,14);if(Math.random()<.7)burst(px,py,'#76f4fa',1,25);}
  else{moveWithCollision({get x(){return px;},set x(v:number){px=v;},get y(){return py;},set y(v:number){py=v;}},dx*run.speed*dt,dy*run.speed*dt,15);}
- if(current?.active){
-  const obj={x:px,y:py};clampCombatExit(current,obj);px=obj.x;py=obj.y;
-}
+ // Exits are sealed by collision-backed visible gates, never a hidden rectangle.
  if(returnCast>0&&castStart&&distance(castStart,{x:px,y:py})>25){returnCast=0;castStart=null;showNotice('RITUAL CANCELADO AO SE MOVER',1.8);}
  if(chargeStarted){charging=Math.min(1.6,charging+dt);}
  else if(mouseDown&&['sword','gun','shotgun','staff','chakram'].includes(run.weapons[run.slot])){if(attackCD<=0)shootWeapon(run.weapons[run.slot],aimAngle(),run.resonance?1+run.resonance*.12:1);}
