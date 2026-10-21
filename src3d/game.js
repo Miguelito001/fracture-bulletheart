@@ -220,7 +220,7 @@ class Fracture {
   this.clearWorld();this.scene.fog.color.setHex(PALETTE.sanctuary.fog);
   this.rooms=[{layout:HUB,index:0,cleared:true,active:false,spawned:true,enemies:[]}];
   this.makeTerrain(this.rooms);
-  this.createHero(worldX(0,7),worldZ(7));this.roomIndex=0;
+  this.createHero(worldX(0,8),worldZ(7));this.roomIndex=0;
   this.testMarker.roomCount=1;this.hp=this.maxHp;this.potions=2;this.gameStarted=true;
   this.worldType='hub';this.setMode('hub');this.updateHUD();this.setObjective('CÂMARA ÂNCORA · E PARA INTERAGIR · PORTAL AO CENTRO');
  }
