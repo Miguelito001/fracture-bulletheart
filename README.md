@@ -143,3 +143,15 @@ Playtest de 30–60 minutos em cada classe, sistemas avançados de IA e line-of-
 - Boss health and multi-phase protections are unchanged.
 
 The values are **initial balance candidates** until multiple manual playtests are completed.
+
+## Versão 1.3 — Câmara Âncora
+
+Ao abrir o jogo você aparece diretamente numa base física imutável. Caminhe para o Portal, Forja, Mercador, Cofre, Arquivo e Altar de Preparação e pressione **E** para interagir. A masmorra só é gerada quando você entra no portal.
+
+- **I:** mochila da expedição, com materiais acumulados.
+- **E no Nó Zero:** extrair pelo portal (primeiro andar) ou subir um andar pela escada (andares superiores).
+- **R:** ritual de retorno de 4 segundos com pergaminho raro. Dano e movimento interrompem sem consumir.
+- **Morte:** 25% dos materiais comuns recuperados, todos os raros em risco perdidos. Ecos e descobertas permanecem.
+- **Extração viva:** todo espólio depositado automaticamente no Cofre, e uma nova masmorra é gerada na próxima saída.
+
+O mapa da expedição não muda ao caminhar de volta; a geometria dos andares revisitados é mantida. O progresso salvo das versões anteriores é preservado. Veja `RELEASE_NOTES_1_3.md`.
