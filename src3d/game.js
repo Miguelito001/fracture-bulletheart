@@ -65,7 +65,7 @@ class Fracture {
   this.rooms=[];this.roomIndex=0;this.enemyUnits=[];this.drops=[];this.gates=[];this.statueActors=[];
   this.elapsed=0;this.hitCooldown=0;this.attackCooldown=0;this.dashCooldown=0;this.dashTime=0;this.invuln=0;
   this.cast=0;this.castOrigin=null;this.isMoving=false;this.killCount=0;this.fx=[];
-  this.solidBodies=[];this.lastFrame=0;this.lastInteraction='';this.cameraTarget=new THREE.Vector3();
+  this.solidBodies=[];this.lastFrame=0;this.lastInteraction='';this.cameraTarget=new THREE.Vector3();this.cameraOffset=new THREE.Vector3(14,18.4,16);this.cameraDeadZone=3.0;this.cameraFrozen=false;this.wallSegments=[];this.weaponKick=0;this.weaponRig=null;this.heroGun=null;this.stepTimer=0;
   this.errors=[];this.gameStarted=false;this.testMarker={engine:'Three.js',physics:'Rapier',rendering:'3D',assets:0,roomCount:0};
   this.lightGeometry=new THREE.SphereGeometry(.15,9,8);
   this.renderer.domElement.addEventListener('pointermove',e=>this.movePointer(e));
@@ -175,9 +175,21 @@ class Fracture {
      if(ch==='B'){this.meshModel('castle-metal-gate',wx,wz,TILE*1.44,{height:0});this.addLight(wx,wz,theme.glow,7);}
      if(ch==='A'){this.addLight(wx,wz,theme.glow,4.2);this.meshModel('kd-torch',wx+.5,wz-1.0,TILE*.43,{height:1.3});}
     }else{
-     // Existing 3D wall models and matching Rapier wall colliders.
-     const wallType=(x*3+z*7+index)%13===0?'kd-wall-cracked':(x*7+z*5+index)%23===0?'kd-wall-broken':'kd-wall';
-     const wall=this.meshModel(wallType,wx,wz,TILE*1.05,{physical:true,colliderScale:.99});
+     // Stone cells have NO standalone wall cube. Only borders of traversable
+     // spaces receive modular wall façades and exactly matching Rapier bodies.
+     for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const xx=x+dx,zz=z+dz;
+      if(xx<0||xx>=WIDTH||zz<0||zz>=HEIGHT||layout.rows[zz][xx]==='#')continue;
+      const ex=wx+dx*TILE*.5,ez=wz+dz*TILE*.5;
+      const vertical=dx!==0;
+      const modelName=(x*3+z*7+index)%13===0?'kd-wall-cracked':(x*7+z*5+index)%23===0?'kd-wall-broken':'kd-wall';
+      const wall=this.meshModel(modelName,ex,ez,TILE*1.035,{rotation:vertical?Math.PI/2:0});
+      if(wall){
+       wall.userData.isWall=true;wall.userData.baseX=ex;wall.userData.baseZ=ez;
+       this.wallSegments.push(wall);
+      }
+      this.solid(ex,1.10,ez,vertical?.20:TILE*.51,1.10,vertical?TILE*.51:.20);
+     }
     }
    }
    if(roomFloor<110)throw Error('A sala '+layout.id+' é pequena demais');
@@ -210,7 +222,7 @@ class Fracture {
     // Imported geometries stay cached, so avoid disposing shared glTF geometry.
    }});}
   if(this.actorGroup){this.scene.remove(this.actorGroup);}this.actorGroup=new THREE.Group();this.scene.add(this.actorGroup);this.heroMixer=null;this.heroAnimations={};
-  this.worldGroup=new THREE.Group();this.scene.add(this.worldGroup);this.lights=[];this.gates=[];this.drops=[];this.enemyUnits=[];this.statueActors=[];
+  this.worldGroup=new THREE.Group();this.scene.add(this.worldGroup);this.lights=[];this.gates=[];this.drops=[];this.enemyUnits=[];this.statueActors=[];this.wallSegments=[];
   this.setupPhysics();
  }
  createHero(x,z){
@@ -219,7 +231,7 @@ class Fracture {
   this.heroPivot=new THREE.Group();this.actorGroup.add(this.heroPivot);this.actorGroup.remove(root);this.heroPivot.add(root);root.position.x=0;root.position.z=0;
   this.heroPivot.position.set(x,0,z);
   // Centre camera instantly after world transitions, avoiding an offscreen spawn.
-  this.cameraTarget.set(x,.8,z);this.camera.position.copy(this.cameraTarget).add(new THREE.Vector3(14,18.4,16));this.camera.lookAt(this.cameraTarget);
+  this.cameraTarget.set(x,.8,z);this.camera.position.copy(this.cameraTarget).add(this.cameraOffset);this.camera.lookAt(this.cameraTarget);
   const setup=this.configureAnimations(root,'kay-knight');this.heroMixer=setup.mixer;this.heroAnimations=setup.actions;this.heroAnimationState='idle';
   const hand=(()=>{let bone=null;root.traverse(o=>{if(/handslot[._]?r|hand[._]?r/i.test(o.name))bone ||= o;});return bone;})();
   this.heroSword=hand?this.meshModel('weapon-sword',0,0,.27,{group:hand}):null;
@@ -500,23 +512,28 @@ class Fracture {
    if(effect.time<=0){this.worldGroup.remove(effect.mesh);effect.mesh.geometry.dispose();effect.mesh.material.dispose();this.fx.splice(this.fx.indexOf(effect),1);}
    else{effect.mesh.scale.setScalar(1+(1-effect.time/effect.max)*1.2);effect.mesh.material.opacity=.64*(effect.time/effect.max);}
   }
-  const fwd=new THREE.Vector3(14,18.4,16);
-  const focus=new THREE.Vector3(p.x+this.aim.x*.85,.8,p.z+this.aim.z*.85);
-  this.cameraTarget.lerp(focus,1-Math.exp(-dt*6));
-  this.camera.position.lerp(this.cameraTarget.clone().add(fwd),1-Math.exp(-dt*5));this.camera.lookAt(this.cameraTarget);
+  // Comfort mode: no aim look-ahead, no bob, shake or delayed rotation.
+  // The camera doesn't move at all while the hero remains in a 3m deadzone.
+  if(!this.cameraFrozen){
+   const dx=p.x-this.cameraTarget.x,dz=p.z-this.cameraTarget.z;
+   const moveX=Math.sign(dx)*Math.max(0,Math.abs(dx)-this.cameraDeadZone);
+   const moveZ=Math.sign(dz)*Math.max(0,Math.abs(dz)-this.cameraDeadZone);
+   const ease=1-Math.exp(-dt*10);
+   this.cameraTarget.x+=moveX*ease;this.cameraTarget.z+=moveZ*ease;
+  }
+  this.camera.position.copy(this.cameraTarget).add(this.cameraOffset);
+  this.camera.lookAt(this.cameraTarget);
   this.sun.position.set(p.x-13,23,p.z+17);this.sun.target.position.set(p.x,0,p.z);this.sun.target.updateMatrixWorld();
-  // Camera-side stone wall fade: keep the player's silhouette visible and do
-  // not put decorative walls outside the real 3D depth buffer.
-  if(this.worldGroup){this.worldGroup.traverse(obj=>{
-   if(!obj.userData.isWall)return;
+  // Occluding wall façades fade, while the physical colliders remain solid.
+  for(const obj of this.wallSegments){
    const dx=obj.userData.baseX-p.x,dz=obj.userData.baseZ-p.z;
-   const obscure=dx>0&&dz>0&&Math.hypot(dx,dz)<8.2;
-   obj.traverse(child=>{if(child.isMesh){
-    let m=child.material;
-    if(!m.userData.isClonedForFade){m=m.clone();m.transparent=true;m.userData.isClonedForFade=true;child.material=m;}
-    m.opacity+=((obscure?.25:1)-m.opacity)*CLAMP(dt*13,0,1);
-   }});
-  });}
+   const obscure=dx>0&&dz>0&&dx<5.2&&dz<5.2;
+   obj.traverse(mesh=>{if(!mesh.isMesh)return;
+    if(!mesh.userData.uniqueOpacity){mesh.material=mesh.material.clone();mesh.material.transparent=true;mesh.userData.uniqueOpacity=true;}
+    mesh.material.opacity+=((obscure?.27:1)-mesh.material.opacity)*CLAMP(dt*9,0,1);
+    mesh.material.depthWrite=!obscure;
+   });
+  }
  }
  frame(){let dt=CLAMP(this.clock.getDelta(),0,1/30);
   this.elapsed+=dt;this.hitCooldown=Math.max(0,this.hitCooldown-dt);this.attackCooldown=Math.max(0,this.attackCooldown-dt);
