@@ -25,3 +25,11 @@
 .hub-mark{color:#ffe9c2;text-shadow:0 2px 18px #e9ae5d}
 #location-toast{color:#fff0c7;text-shadow:0 3px 12px #0a1020}
 #notice{bottom:166px;z-index:25}
+
+/* FRACTURE ergonomics: mouse/touch combat controls are actual interactive surfaces. */
+.hud-bottom{pointer-events:auto}.hud-bottom .weapon,.hud-bottom .ability{cursor:pointer;pointer-events:auto;touch-action:manipulation;transition:border-color .13s,transform .13s,filter .13s}
+.hud-bottom .weapon:hover,.hud-bottom .ability:hover{border-color:#ffd58c;filter:brightness(1.13);transform:translateY(-3px)}
+.hud-bottom [role="button"]:focus-visible{outline:2px solid #f8da9b;outline-offset:3px}
+#scene{cursor:crosshair;image-rendering:auto;touch-action:none}
+#hud,.hud-bottom{user-select:none}
+@media(max-width:900px){.hud-bottom{bottom:36px}.ability{min-width:73px}}
