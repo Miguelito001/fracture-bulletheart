@@ -1,0 +1,40 @@
+name: Prepare FRACTURE source
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  unpack:
+    if: "contains(github.event.head_commit.message, 'bootstrap: upload source')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Expand source bundle
+        run: node bootstrap.mjs
+      - name: Generate original art
+        run: |
+          python -m pip install Pillow
+          python tools/create_art.py
+          python tools/menu_art.py
+      - name: Install and test
+        run: |
+          npm install
+          npm run check
+          npm test
+          npm run build
+      - name: Publish complete repository
+        run: |
+          rm -f bootstrap.mjs bundle.part*.txt
+          rm -f .github/workflows/bootstrap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: publish FRACTURE BULLETHEART 1.2 source and assets"
+          git push origin main
