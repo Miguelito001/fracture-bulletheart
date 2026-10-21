@@ -263,7 +263,19 @@ class Fracture {
  movePointer(e){this.pointer.x=(e.clientX/innerWidth)*2-1;this.pointer.y=1-(e.clientY/innerHeight)*2;
   this.raycaster.setFromCamera(this.pointer,this.camera);const target=new THREE.Vector3();
   if(this.raycaster.ray.intersectPlane(this.plane,target)){
-   const here=this.playerBody?.translation();if(here){this.aim.set(target.x-here.x,0,target.z-here.z).normalize();}
+   const here=this.playerBody?.translation();if(here){
+    this.aim.set(target.x-here.x,0,target.z-here.z).normalize();
+    // Hit the visible body: pointer-to-ground projection alone misses elevated
+    // isometric sprites, especially with the revolver's tighter firing arc.
+    let candidate=null,best=.13;
+    for(const enemy of this.enemyUnits){
+     if(enemy.hp<=0)continue;
+     const projected=new THREE.Vector3(enemy.x,1.10,enemy.z).project(this.camera);
+     const distance=Math.hypot(projected.x-this.pointer.x,projected.y-this.pointer.y);
+     if(distance<best){best=distance;candidate=enemy;}
+    }
+    if(candidate)this.aim.set(candidate.x-here.x,0,candidate.z-here.z).normalize();
+   }
   }
  }
  pointerDown(e){if(this.mode!=='playing')return;if(e.button===0)this.attack();if(e.button===2)this.attack(true);}
