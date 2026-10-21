@@ -12,6 +12,10 @@ const random = (a, b) => a + Math.random() * (b - a), int = (a, b) => Math.floor
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y), angle = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
 const vec = (a, m = 1) => ({ x: Math.cos(a) * m, y: Math.sin(a) * m });
 const KEY = 'fracture_bulletheart_v1';
+const SESSION_KEY = 'fracture_anchor_active_run_v1';
+const MATERIALS = { scrap: { name: 'Ferro da Cripta', value: 7, rare: false, color: '#9eb2ba' }, fang: { name: 'Presa Estilhaçada', value: 9, rare: false, color: '#ddd0ab' }, cloth: { name: 'Fio Espectral', value: 11, rare: false, color: '#94bcdd' }, ember: { name: 'Brasa Antiga', value: 48, rare: true, color: '#efa678' }, rift: { name: 'Fragmento da Fenda', value: 65, rare: true, color: '#ae99ed' }, core: { name: 'Núcleo de Guardião', value: 110, rare: true, color: '#e3c67a' } };
+const BAG_SLOTS = 12;
+const escapeHtml = (x) => x.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
 function loadSave() {
     try {
         const o = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -32,6 +36,12 @@ function loadSave() {
     return { echoes: 0, bestFloor: 1, bestKills: 0, runs: 0, wins: 0, discovered: ['sword', 'gun', 'wanderer'], unlocks: [] };
 }
 let save = loadSave();
+save.stash ||= {};
+save.portalScrolls ||= 0;
+save.extractions ||= 0;
+save.preferredClass ||= 'wanderer';
+save.preparedPotion ||= 0;
+save.capacity ||= BAG_SLOTS;
 const writeSave = () => { try {
     localStorage.setItem(KEY, JSON.stringify(save));
 }
@@ -56,6 +66,10 @@ let keys = new Set();
 let mapVisible = true;
 let audioOn = true;
 let audioCtx = null;
+let hubActive = false, returnCast = 0, castStart = null, hubStatus = '';
+const HUB = { x: 4140, y: 3300 };
+const hubStations = [{ id: 'portal', label: 'PORTAL DA FRATURA', x: HUB.x, y: HUB.y - 205, color: '#9d8cf5' }, { id: 'forge', label: 'FORJA', x: HUB.x - 410, y: HUB.y - 145, color: '#e6ab6c' }, { id: 'merchant', label: 'MERCADOR', x: HUB.x + 410, y: HUB.y - 145, color: '#eac77f' }, { id: 'vault', label: 'COFRE', x: HUB.x + 410, y: HUB.y + 145, color: '#84d7b9' }, { id: 'archive', label: 'ARQUIVO', x: HUB.x - 410, y: HUB.y + 145, color: '#a6a6eb' }, { id: 'altar', label: 'ALTAR DE PREPARAÇÃO', x: HUB.x, y: HUB.y + 215, color: '#e6b4c2' }];
+let floorMemory = new Map();
 let locationLabel = '', noticeTimer = 0, locationTimer = 0;
 let bossCurrent = null;
 let xpQueue = 0;
@@ -170,7 +184,7 @@ function ambience(dt) {
     }
     catch { }
 }
-function createRun(cls) { return { floor: 1, level: 1, xp: 0, nextXp: xpRequirementFor(1), hp: cls === 'bulwark' ? 170 : cls === 'wanderer' ? 125 : 105, maxHp: cls === 'bulwark' ? 170 : cls === 'wanderer' ? 125 : 105, coins: 0, echoes: 0, kills: 0, rooms: 0, bosses: 0, potions: 2 + (save.unlocks.includes('flask') ? 1 : 0), classId: cls, weapons: cls === 'bulwark' ? ['hammer', 'bow'] : cls === 'arcanist' ? ['staff', 'shotgun'] : ['sword', 'gun'], slot: 0, damage: 1, speed: cls === 'wanderer' ? 250 : cls === 'bulwark' ? 202 : 224, attackRate: 1, critical: .08, armor: cls === 'bulwark' ? .14 : 0, shotCount: 0, lifesteal: 0, piercing: 0, bleed: 0, bounce: 0, explode: 0, frost: 0, lightning: 0, orbit: 0, rollCharge: 0, resonance: 0, sigils: 0, relics: [], runTime: 0, maxFloor: 5 }; }
+function createRun(cls) { return { floor: 1, level: 1, xp: 0, nextXp: xpRequirementFor(1), hp: cls === 'bulwark' ? 170 : cls === 'wanderer' ? 125 : 105, maxHp: cls === 'bulwark' ? 170 : cls === 'wanderer' ? 125 : 105, coins: 0, echoes: 0, kills: 0, rooms: 0, bosses: 0, potions: 2 + (save.unlocks.includes('flask') ? 1 : 0), classId: cls, weapons: cls === 'bulwark' ? ['hammer', 'bow'] : cls === 'arcanist' ? ['staff', 'shotgun'] : ['sword', 'gun'], slot: 0, damage: 1, speed: cls === 'wanderer' ? 250 : cls === 'bulwark' ? 202 : 224, attackRate: 1, critical: .08, armor: cls === 'bulwark' ? .14 : 0, shotCount: 0, lifesteal: 0, piercing: 0, bleed: 0, bounce: 0, explode: 0, frost: 0, lightning: 0, orbit: 0, rollCharge: 0, resonance: 0, sigils: 0, relics: [], cargo: [], scrolls: 0, runTime: 0, maxFloor: 5 }; }
 function persistEnd(won = false) { if (!run)
     return; save.runs++; save.bestFloor = Math.max(save.bestFloor, run.floor); save.bestKills = Math.max(save.bestKills, run.kills); save.echoes += run.echoes; if (won)
     save.wins++; writeSave(); }
@@ -180,12 +194,15 @@ function discover(id) { if (!save.discovered.includes(id)) {
     showNotice('✦ NOVA DESCOBERTA: ' + (weaponNames[id] || id.toUpperCase()));
     sound('level');
 } }
-function begin(cls) { run = createRun(cls); if (save.unlocks.includes('heart')) {
+function begin(cls) { hubActive = false; floorMemory.clear(); returnCast = 0; run = createRun(cls); run.scrolls = Math.min(1, save.portalScrolls || 0); save.portalScrolls = Math.max(0, (save.portalScrolls || 0) - run.scrolls); run.potions = Math.min(5, run.potions + (save.preparedPotion || 0)); save.preparedPotion = 0; if (save.preparedWeapon) {
+    run.weapons[0] = save.preparedWeapon;
+    save.preparedWeapon = null;
+} writeSave(); if (save.unlocks.includes('heart')) {
     run.maxHp += 20;
     run.hp += 20;
 } if (save.unlocks.includes('forge')) {
     run.damage *= 1.10;
-} discover(cls); mode = 'playing'; el('#overlay').innerHTML = ''; el('#hud').classList.remove('hidden'); el('#pause-button').classList.remove('hidden'); globalTime = 0; dashCD = 0; attackCD = 0; specialCD = 0; hitInvuln = 0; fireHeld = false; mouseDown = false; generateFloor(); }
+} discover(cls); mode = 'playing'; el('#overlay').innerHTML = ''; el('#hud').classList.remove('hidden'); el('#pause-button').classList.remove('hidden'); el('#hub-status').classList.add('hidden'); el('#footer-hint').textContent = 'EXPEDIÇÃO · E NO NÓ ZERO PARA EXTRAIR · R TELEPORTE (4s) · I MOCHILA · WASD · ESPAÇO · Q'; globalTime = 0; dashCD = 0; attackCD = 0; specialCD = 0; hitInvuln = 0; fireHeld = false; mouseDown = false; generateFloor(); }
 // The dungeon is a non-overlapping random connected graph of tile rooms.
 function generateFloor() {
     world = new Set();
@@ -446,7 +463,7 @@ const upgradeDefs = [
 let rewardChoice = null;
 function choicesOf(pool, count) { return [...pool].sort(() => Math.random() - .5).slice(0, count); }
 function showOverlay(html) { el('#overlay').innerHTML = html; }
-function dismiss() { el('#overlay').innerHTML = ''; mode = 'playing'; mouseDown = false; }
+function dismiss() { el('#overlay').innerHTML = ''; mode = hubActive ? 'hub' : 'playing'; mouseDown = false; }
 const card = (title, desc, tag, emoji, idx) => `<button class="card" data-choice="${idx}"><div class="tag">${tag}</div><div class="emoji">${emoji}</div><h3>${title}</h3><p>${desc}</p></button>`;
 function openLevelUp() {
     if (!run || mode === 'gameover')
@@ -497,12 +514,50 @@ function openReward(fromBoss) {
     bindChoice([() => { run.weapons[run.slot] = options[0]; discover(options[0]); }, () => { run.weapons[run.slot] = options[1]; discover(options[1]); }, () => { choicesOf(upgradeDefs, 2).forEach(u => { u.apply(); discover(`up-${u.id}`); }); }].map(fn => () => { fn(); if (fromBoss)
         advanceFloor(); }));
 }
+function rememberFloor() { floorMemory.set(run.floor, { world, blocked, rooms, mobs, loot, sigils: run.sigils }); }
+function restoreFloor(which, nearBoss = false) { const snap = floorMemory.get(which); if (!snap)
+    return false; world = snap.world; blocked = snap.blocked; rooms = snap.rooms; mobs = snap.mobs; loot = snap.loot; shots = []; particles = []; run.floor = which; run.sigils = snap.sigils; bossCurrent = mobs.find(m => m.kind === 'boss' && !m.dead) || null; current = nearBoss ? rooms.find(r => r.kind === 'boss') || rooms[0] : rooms[0]; px = current.cx; py = current.cy; camera.x = px - W / 2; camera.y = py - H / 2; showLocation(regionNames[(which - 1) % 5]); return true; }
 function advanceFloor() { if (run.floor >= run.maxFloor) {
     win();
     return;
-} run.floor++; run.hp = Math.min(run.maxHp, run.hp + Math.round(run.maxHp * .26)); generateFloor(); }
-function win() { persistEnd(true); mode = 'victory'; sound('win'); showEnd(true); }
-function gameOver() { persistEnd(false); mode = 'gameover'; showEnd(false); }
+} rememberFloor(); persistSession(); run.floor++; run.hp = Math.min(run.maxHp, run.hp + Math.round(run.maxHp * .26)); if (!restoreFloor(run.floor))
+    generateFloor(); }
+function retreatFloor() { if (run.floor <= 1)
+    return; rememberFloor(); persistSession(); if (restoreFloor(run.floor - 1, true))
+    showNotice('A ESCADARIA RETORNA AO ANDAR ANTERIOR', 3); }
+function settleExpedition(kind) {
+    clearSession();
+    const surviving = kind !== 'death';
+    const gained = [];
+    for (const item of run.cargo) {
+        const def = MATERIALS[item.id];
+        if (!def)
+            continue;
+        const qty = surviving ? item.qty : def.rare ? 0 : Math.floor(item.qty * .25);
+        if (qty) {
+            save.stash[item.id] = (save.stash[item.id] || 0) + qty;
+            gained.push({ id: item.id, qty });
+        }
+    }
+    if (surviving) {
+        save.extractions = (save.extractions || 0) + 1;
+        save.portalScrolls = (save.portalScrolls || 0) + run.scrolls;
+    }
+    persistEnd(kind === 'victory');
+    save.shopPurchased = 0;
+    const previous = run;
+    run.cargo = [];
+    run.scrolls = 0;
+    writeSave();
+    enterHub();
+    const details = gained.map(v => `<span class="loot-pill">${escapeHtml(MATERIALS[v.id].name)} ×${v.qty}</span>`).join('') || '<span class="muted">Nenhum material recuperado</span>';
+    mode = 'choice';
+    showOverlay(`<div class="modal"><header>${kind === 'death' ? '☠ A FRATURA TE DEVOLVEU' : kind === 'victory' ? '✦ OS GUARDIÕES CAÍRAM' : '✦ EXTRAÇÃO CONCLUÍDA'}</header><h2>${kind === 'death' ? 'O espólio tem um preço.' : 'Você voltou para casa.'}</h2><p class="lead">${kind === 'death' ? 'Equipamentos e materiais raros não extraídos foram perdidos. Apenas 25% dos materiais comuns retornaram.' : 'Todo o espólio foi armazenado no Cofre. Uma nova masmorra nascerá quando atravessar o portal.'}</p><div class="stat-row"><div class="stat"><b>${previous.kills}</b><small>CRIATURAS</small></div><div class="stat"><b>${previous.level}</b><small>NÍVEL</small></div><div class="stat"><b>${previous.floor}</b><small>REGIÃO</small></div><div class="stat"><b>${previous.echoes}</b><small>ECOS</small></div></div><h3>ESPÓLIO RECUPERADO</h3><div class="loot-row">${details}</div><div class="actions"><button class="btn" id="home-close">RETORNAR À CÂMARA ÂNCORA</button></div></div>`);
+    el('#home-close').onclick = dismiss;
+    sound(kind === 'death' ? 'hurt' : 'win');
+}
+function win() { settleExpedition('victory'); }
+function gameOver() { settleExpedition('death'); }
 function showEnd(won) {
     el('#hud').classList.add('hidden');
     showOverlay(`<div class="modal"><header>${won ? '✦ O ABISMO FOI VENCIDO' : '☠ A FENDA COBROU SEU PREÇO'}</header><h1>${won ? 'UMA LENDA NASCEU.' : 'A MEMÓRIA FICA.'}</h1><p class="lead">${won ? 'Você derrotou os guardiões, mas outros segredos ainda esperam.' : 'Sua build acabou, mas cada descoberta e Eco permanece no Arquivo.'}</p><div class="stat-row"><div class="stat"><b>${run.kills}</b><small>CRIATURAS</small></div><div class="stat"><b>${run.level}</b><small>NÍVEL</small></div><div class="stat"><b>${Math.floor(run.runTime / 60)}m ${Math.floor(run.runTime % 60)}s</b><small>TEMPO</small></div><div class="stat"><b>${run.rooms}</b><small>SALAS</small></div><div class="stat"><b>${run.echoes}</b><small>ECOS GANHOS</small></div><div class="stat"><b>${run.floor}</b><small>ANDAR</small></div></div><div class="actions"><button id="again" class="btn">✦ NOVA EXPEDIÇÃO</button><button id="to-menu" class="btn alt">MENU PRINCIPAL</button></div></div>`);
@@ -513,6 +568,7 @@ function menu() {
     mode = 'menu';
     mouseDown = false;
     el('#hud').classList.add('hidden');
+    el('#hub-status').classList.add('hidden');
     el('#pause-button').classList.add('hidden');
     showOverlay(`<div class="modal"><header>✦ &nbsp; FRACTURE · BULLETHEART</header><h1>FRACTURE</h1><div class="tag">BULLETHEART · PUBLIC BETA 1.2</div><p class="lead">Desça uma masmorra viva. Aprenda a esquivar. Encontre armas impossíveis. Transforme cada derrota em novas possibilidades.</p><div class="stat-row"><div class="stat"><b>${save.echoes}</b><small>ECOS PERMANENTES</small></div><div class="stat"><b>${save.discovered.length}</b><small>DESCOBERTAS</small></div><div class="stat"><b>${save.bestFloor}</b><small>MAIOR ANDAR</small></div><div class="stat"><b>${save.wins}</b><small>VITÓRIAS</small></div></div><div class="actions"><button class="btn" id="start">COMEÇAR EXPEDIÇÃO →</button><button class="btn alt" id="archive">O ARQUIVO</button><button class="btn alt" id="vault">RELICÁRIO</button><button class="btn alt" id="audio">SOM ${audioOn ? 'LIGADO' : 'DESLIGADO'}</button></div><div class="help"><span><kbd>WASD</kbd> Mover</span><span><kbd>CLICK</kbd> Atacar / carregar</span><span><kbd>1/2</kbd> Trocar arma</span><span><kbd>ESPAÇO</kbd> Esquivar</span><span><kbd>Q</kbd> Especial</span><span><kbd>E</kbd> Interagir</span></div></div>`);
     el('#start').onclick = () => menuSelect();
@@ -524,7 +580,10 @@ function showVault() {
     mode = 'archive';
     const upgrades = [{ id: 'flask', cost: 80, icon: '♥', name: 'Bolsa do Viajante', desc: 'Uma poção adicional no início das próximas expedições.' }, { id: 'heart', cost: 180, icon: '✚', name: 'Coração Inquebrável', desc: '+20 vida máxima em todas as partidas futuras.' }, { id: 'forge', cost: 300, icon: '⚒', name: 'Herança da Forja', desc: '+10% dano inicial. O restante da build continua temporário.' }];
     showOverlay(`<div class="modal"><header>✦ &nbsp; RELICÁRIO DOS ESQUECIDOS</header><h2>Mesmo a morte deixa heranças.</h2><p class="lead">Gaste os Ecos acumulados nas expedições. Essas compras são permanentes; armas e mutações continuam sendo descobertas durante cada partida.</p><div class="stat-row"><div class="stat"><b>${save.echoes}</b><small>ECOS DISPONÍVEIS</small></div></div><div class="cards">${upgrades.map((u, i) => card(u.name, u.desc, (save.unlocks.includes(u.id) ? 'ADQUIRIDO' : u.cost + ' ECOS'), u.icon, i)).join('')}</div><div class="actions"><button class="btn alt" id="vault-back">← VOLTAR AO MENU</button></div></div>`);
-    el('#vault-back').onclick = menu;
+    el('#vault-back').onclick = () => { if (hubActive)
+        closeHubModal();
+    else
+        menu(); };
     el('#overlay').querySelectorAll('[data-choice]').forEach(b => b.addEventListener('click', () => { const u = upgrades[Number(b.dataset.choice)]; if (save.unlocks.includes(u.id)) {
         alert('Esta melhoria já foi comprada.');
         return;
@@ -534,7 +593,10 @@ function showVault() {
     } save.echoes -= u.cost; save.unlocks.push(u.id); writeSave(); showVault(); sound('level'); }));
 }
 function menuSelect() { mode = 'menu'; showOverlay(`<div class="modal"><header>✦ &nbsp; A ÚLTIMA PORTA SE ABRE</header><h2>Quem atravessará a fenda?</h2><p class="lead">Cada caminho começa com duas armas, uma habilidade própria e um ritmo diferente. Durante a expedição, qualquer build pode se transformar.</p><div class="classes"><button class="card" data-class="wanderer"><div class="tag">MOBILIDADE / PRECISÃO</div><div class="emoji">⚔</div><h3>Caçador</h3><p>Espada e revólver. Corre veloz, esquiva duas vezes e recebe bônus ao alternar armas.</p></button><button class="card" data-class="bulwark"><div class="tag">FORÇA / IMPACTO</div><div class="emoji">🔨</div><h3>Colosso</h3><p>Martelo e arco. Resiste a golpes, controla multidões e executa esmagamentos pesados.</p></button><button class="card" data-class="arcanist"><div class="tag">MAGIA / ÁREA</div><div class="emoji">✧</div><h3>Arcanista</h3><p>Cetro e escopeta. Encadeia raios e conjura uma singularidade que puxa os inimigos.</p></button></div><div class="actions"><button class="btn alt" id="back">← VOLTAR</button></div></div>`); el('#back').onclick = menu; el('#overlay').querySelectorAll('[data-class]').forEach(e => e.addEventListener('click', () => begin(e.dataset.class))); }
-function showArchive() { mode = 'archive'; const weapons = ['sword', 'hammer', 'bow', 'gun', 'shotgun', 'staff', 'chakram']; const entries = [...weapons, ...['wanderer', 'bulwark', 'arcanist'], ...upgradeDefs.map(x => `up-${x.id}`), ...Array.from({ length: 5 }, (_, i) => `guardiao-${i + 1}`)]; showOverlay(`<div class="modal"><header>✦ &nbsp; CÓDICE DA FENDA</header><h2>O Arquivo</h2><p class="lead">Descobertas verdadeiras. Novas armas surgem durante expedições; algumas só são encontradas explorando salas especiais.</p><div class="stat-row"><div class="stat"><b>${save.discovered.length} / ${entries.length}</b><small>REGISTROS</small></div><div class="stat"><b>${save.echoes}</b><small>ECOS</small></div><div class="stat"><b>${save.runs}</b><small>EXPEDIÇÕES</small></div></div><div class="archive">${entries.map(n => `<div class="card ${save.discovered.includes(n) ? '' : 'lock'}"><div class="tag">${save.discovered.includes(n) ? 'DESCOBERTO' : 'DESCONHECIDO'}</div><b>${save.discovered.includes(n) ? (weaponNames[n] || upgradeDefs.find(a => 'up-' + a.id === n)?.name || classNames[n] || 'Guardião Derrotado') : '???'}</b><small>${save.discovered.includes(n) ? 'Registro preservado no Arquivo.' : 'Explore, experimente e descubra.'}</small></div>`).join('')}</div><div class="actions"><button id="arch-back" class="btn alt">← VOLTAR</button><button id="export" class="btn alt">EXPORTAR SAVE</button><button id="import" class="btn alt">IMPORTAR SAVE</button></div></div>`); el('#arch-back').onclick = menu; el('#export').onclick = () => { const blob = new Blob([JSON.stringify(save, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'fracture-save.json'; a.click(); URL.revokeObjectURL(a.href); }; el('#import').onclick = () => { const i = document.createElement('input'); i.type = 'file'; i.accept = '.json'; i.onchange = async () => { try {
+function showArchive() { mode = 'archive'; const weapons = ['sword', 'hammer', 'bow', 'gun', 'shotgun', 'staff', 'chakram']; const entries = [...weapons, ...['wanderer', 'bulwark', 'arcanist'], ...upgradeDefs.map(x => `up-${x.id}`), ...Array.from({ length: 5 }, (_, i) => `guardiao-${i + 1}`)]; showOverlay(`<div class="modal"><header>✦ &nbsp; CÓDICE DA FENDA</header><h2>O Arquivo</h2><p class="lead">Descobertas verdadeiras. Novas armas surgem durante expedições; algumas só são encontradas explorando salas especiais.</p><div class="stat-row"><div class="stat"><b>${save.discovered.length} / ${entries.length}</b><small>REGISTROS</small></div><div class="stat"><b>${save.echoes}</b><small>ECOS</small></div><div class="stat"><b>${save.runs}</b><small>EXPEDIÇÕES</small></div></div><div class="archive">${entries.map(n => `<div class="card ${save.discovered.includes(n) ? '' : 'lock'}"><div class="tag">${save.discovered.includes(n) ? 'DESCOBERTO' : 'DESCONHECIDO'}</div><b>${save.discovered.includes(n) ? (weaponNames[n] || upgradeDefs.find(a => 'up-' + a.id === n)?.name || classNames[n] || 'Guardião Derrotado') : '???'}</b><small>${save.discovered.includes(n) ? 'Registro preservado no Arquivo.' : 'Explore, experimente e descubra.'}</small></div>`).join('')}</div><div class="actions"><button id="arch-back" class="btn alt">← VOLTAR</button><button id="export" class="btn alt">EXPORTAR SAVE</button><button id="import" class="btn alt">IMPORTAR SAVE</button></div></div>`); el('#arch-back').onclick = () => { if (hubActive)
+    closeHubModal();
+else
+    menu(); }; el('#export').onclick = () => { const blob = new Blob([JSON.stringify(save, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'fracture-save.json'; a.click(); URL.revokeObjectURL(a.href); }; el('#import').onclick = () => { const i = document.createElement('input'); i.type = 'file'; i.accept = '.json'; i.onchange = async () => { try {
     const o = JSON.parse(await i.files[0].text());
     if (!Array.isArray(o.discovered) && !Array.isArray(o.archive))
         throw Error();
@@ -551,12 +613,17 @@ function showArchive() { mode = 'archive'; const weapons = ['sword', 'hammer', '
 catch {
     alert('Arquivo de progresso inválido.');
 } }; i.click(); }; }
-function pause() { if (mode === 'playing') {
+function pause() { if (mode === 'hub') {
+    mode = 'pause';
+    showOverlay('<div class="modal"><header>CÂMARA ÂNCORA</header><h2>Pausa</h2><p>A Fratura espera por você.</p><div class="actions"><button id="resume-hub" class="btn">VOLTAR À BASE</button></div></div>');
+    el('#resume-hub').onclick = closeHubModal;
+    return;
+} if (mode === 'playing') {
     mode = 'pause';
     showOverlay(`<div class="modal"><header>✦ &nbsp; A REALIDADE AGUARDA</header><h2>Expedição em pausa</h2><p>Andar ${run.floor}, nível ${run.level}. ${run.kills} criaturas derrotadas. Nenhum segundo de progresso será perdido.</p><div class="actions"><button class="btn" id="resume">CONTINUAR</button><button class="btn alt" id="restart">NOVA PARTIDA</button><button class="btn alt" id="quit">ENCERRAR EXPEDIÇÃO</button></div></div>`);
     el('#resume').onclick = dismiss;
-    el('#restart').onclick = menuSelect;
-    el('#quit').onclick = () => { persistEnd(false); menu(); };
+    el('#restart').onclick = () => settleExpedition('death');
+    el('#quit').onclick = () => settleExpedition('death');
 }
 else if (mode === 'pause')
     dismiss(); }
@@ -565,7 +632,12 @@ function burst(x, y, color, n = 10, power = 125) { for (let i = 0; i < n; i++) {
     particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: random(.18, .65), max: .65, size: random(2, 6), color, kind: 'spark' });
 } if (particles.length > 450)
     particles.splice(0, particles.length - 450); }
-function damagePlayer(amount) { if (hitInvuln > 0 || dashTime > 0 || mode !== 'playing')
+function damagePlayer(amount) { if (mode !== 'playing')
+    return; if (returnCast > 0) {
+    returnCast = 0;
+    castStart = null;
+    showNotice('RITUAL INTERROMPIDO — VOCÊ FOI ATINGIDO!', 2.2);
+} if (hitInvuln > 0 || dashTime > 0 || mode !== 'playing')
     return; run.hp -= Math.max(1, Math.round(amount * (1 - run.armor))); hitInvuln = .6; screenShake = 12; screenFlash = .18; sound('hurt'); burst(px, py, '#f47687', 12); if (run.hp <= 0) {
     run.hp = 0;
     gameOver();
@@ -629,10 +701,18 @@ function kill(m) {
     r.enemiesLeft = Math.max(0, r.enemiesLeft - 1);
     burst(m.x, m.y, kinds[m.kind].color, m.kind === 'boss' ? 48 : 18, 220);
     sound('hit');
+    if ((m.kind === 'boss' && Math.random() < .35) || (m.kind === 'elite' && Math.random() < .045)) {
+        run.scrolls++;
+        showNotice('✦ PERGAMINHO DE RETORNO ENCONTRADO!', 3);
+    }
     const gems = m.kind === 'boss' ? 8 : m.kind === 'elite' ? 4 : (Math.random() < .20 ? 2 : 1);
     const xp = m.kind === 'boss' ? 14 : m.kind === 'elite' ? 11 : 5;
     for (let i = 0; i < gems; i++)
         loot.push({ x: m.x + random(-24, 24), y: m.y + random(-24, 24), kind: 'xp', amount: xp, label: '', room: r.id });
+    if (Math.random() < (m.kind === 'elite' ? .65 : m.kind === 'boss' ? 1 : .23)) {
+        const id = m.kind === 'boss' ? 'core' : m.kind === 'elite' && Math.random() < .45 ? 'rift' : m.kind === 'elite' ? 'ember' : pick(['scrap', 'scrap', 'fang', 'cloth']);
+        loot.push({ x: m.x + random(-25, 25), y: m.y + random(-25, 25), kind: 'material', amount: m.kind === 'boss' ? 2 : 1, label: MATERIALS[id].name, materialId: id, room: r.id });
+    }
     if (Math.random() < .13)
         loot.push({ x: m.x, y: m.y, kind: 'coin', amount: int(3, 8), label: '', room: r.id });
     if (Math.random() < .018)
@@ -646,7 +726,24 @@ function kill(m) {
     if (!livingEnemies(m.room))
         clearRoom(r);
 }
+function addCargo(id, qty = 1) { const v = run.cargo.find(x => x.id === id); if (v) {
+    v.qty += qty;
+    return true;
+} if (run.cargo.length >= BAG_SLOTS) {
+    showNotice('MOCHILA CHEIA — 12 ESPAÇOS', 1.8);
+    return false;
+} run.cargo.push({ id, qty }); return true; }
 function collect(l) {
+    if (l.kind === 'material') {
+        if (!l.materialId || !addCargo(l.materialId, l.amount))
+            return;
+        const idx = loot.indexOf(l);
+        if (idx >= 0)
+            loot.splice(idx, 1);
+        sound('pick');
+        fxText(px, py - 40, 'ESPÓLIO +' + l.amount, MATERIALS[l.materialId].color);
+        return;
+    }
     const i = loot.indexOf(l);
     if (i >= 0)
         loot.splice(i, 1);
@@ -665,11 +762,22 @@ function collect(l) {
     if (l.kind === 'xp' || l.kind === 'coin')
         sound('pick');
 }
-function interact() { if (mode !== 'playing')
-    return; const l = loot.find(o => ['chest', 'artifact', 'heart'].includes(o.kind) && distance(o, { x: px, y: py }) < 100); if (l)
-    collect(l);
-else if (current?.kind === 'boss' && current.cleared)
-    advanceFloor(); }
+function interact() { if (mode === 'hub') {
+    interactHub();
+    return;
+} if (mode !== 'playing')
+    return; const start = rooms[0]; if (start && distance({ x: px, y: py }, { x: start.cx, y: start.cy }) < 115 && !current?.active) {
+    if (run.floor === 1) {
+        settleExpedition('extraction');
+    }
+    else
+        retreatFloor();
+    return;
+} if (current?.kind === 'boss' && current.cleared && distance({ x: px, y: py }, { x: current.cx, y: current.cy }) < 175) {
+    advanceFloor();
+    return;
+} const l = loot.find(o => ['chest', 'artifact', 'heart'].includes(o.kind) && distance(o, { x: px, y: py }) < 100); if (l)
+    collect(l); }
 function makeShot(x, y, a, speed, damage, enemy, kind, life = 1.6, pierce = 0, r = 8) { const v = vec(a, speed); shots.push({ x, y, vx: v.x, vy: v.y, damage, life, enemy, kind, pierce, hit: new Set(), r }); }
 function hammerImpact(x, y, power) {
     const radius = Math.min(104, 65 + power * 12), base = 45 * power;
@@ -837,8 +945,33 @@ function keyHandler(e) {
         pause();
         return;
     }
+    if (mode === 'hub') {
+        if (k === 'e')
+            interactHub();
+        if (k === 'i')
+            openBag(true);
+        if (k === 'm')
+            audioOn = !audioOn;
+        return;
+    }
     if (mode !== 'playing')
         return;
+    if (k === 'i') {
+        openBag(false);
+        return;
+    }
+    if (k === 'r') {
+        if (run.scrolls < 1) {
+            showNotice('SEM PERGAMINHOS DE RETORNO', 2);
+            return;
+        }
+        if (returnCast <= 0) {
+            returnCast = 4;
+            castStart = { x: px, y: py };
+            showNotice('RITUAL DE RETORNO — 4 SEGUNDOS', 4);
+        }
+        return;
+    }
     if (k === '1')
         swap(0);
     if (k === '2')
@@ -1030,6 +1163,11 @@ function updatePlayer(dt) {
         px = obj.x;
         py = obj.y;
     }
+    if (returnCast > 0 && castStart && distance(castStart, { x: px, y: py }) > 25) {
+        returnCast = 0;
+        castStart = null;
+        showNotice('RITUAL CANCELADO AO SE MOVER', 1.8);
+    }
     if (chargeStarted) {
         charging = Math.min(1.6, charging + dt);
     }
@@ -1039,11 +1177,11 @@ function updatePlayer(dt) {
     }
     for (const l of [...loot]) {
         const dist = distance(l, { x: px, y: py });
-        if (['xp', 'coin'].includes(l.kind) && dist < 180) {
+        if (['xp', 'coin', 'material'].includes(l.kind) && dist < 135) {
             l.x += (px - l.x) / Math.max(1, dist) * 500 * dt;
             l.y += (py - l.y) / Math.max(1, dist) * 500 * dt;
         }
-        if (dist < 28 && ['xp', 'coin'].includes(l.kind))
+        if (dist < 28 && ['xp', 'coin', 'material'].includes(l.kind))
             collect(l);
     }
     const r = roomAt(px, py);
@@ -1067,6 +1205,25 @@ function updatePlayer(dt) {
 function tick(dt) {
     globalTime += dt;
     run.runTime += dt;
+    sessionTimer += dt;
+    if (sessionTimer >= 5) {
+        sessionTimer = 0;
+        persistSession();
+    }
+    if (returnCast > 0) {
+        returnCast -= dt;
+        if (returnCast <= 0) {
+            returnCast = 0;
+            if (run.scrolls > 0) {
+                run.scrolls--;
+                settleExpedition('extraction');
+            }
+            return;
+        }
+        el('#notice').textContent = '✦ RETORNO À CÂMARA ÂNCORA EM ' + returnCast.toFixed(1) + 's — NÃO SE MOVA';
+        el('#notice').style.opacity = '1';
+        noticeTimer = .2;
+    }
     noticeTimer -= dt;
     locationTimer -= dt;
     screenShake = Math.max(0, screenShake - dt * 35);
@@ -1076,7 +1233,11 @@ function tick(dt) {
     if (locationTimer <= 0)
         el('#location-toast').style.opacity = '0';
     updatePlayer(dt);
+    if (mode !== 'playing')
+        return;
     updateEnemies(dt);
+    if (mode !== 'playing')
+        return;
     updateShots(dt);
     ambience(dt);
     for (let i = particles.length - 1; i >= 0; i--) {
@@ -1203,6 +1364,8 @@ function drawWorld() {
             if (blocked.has(tileKey(x, y)))
                 image('pillar', wx + T / 2, wy + T / 2 - 11, 55, 74);
         }
+    if (hubActive)
+        drawHubStations();
     for (const r of rooms) {
         if (!r.seen)
             continue;
@@ -1323,6 +1486,17 @@ function drawWorld() {
             g.beginPath();
             g.arc(l.x, y, 7, 0, Math.PI * 2);
             g.fill();
+            g.shadowBlur = 0;
+        }
+        else if (l.kind === 'material') {
+            g.shadowColor = MATERIALS[l.materialId || 'scrap'].color;
+            g.shadowBlur = 16;
+            g.fillStyle = MATERIALS[l.materialId || 'scrap'].color;
+            g.save();
+            g.translate(l.x, y);
+            g.rotate(Math.PI / 4);
+            g.fillRect(-10, -10, 20, 20);
+            g.restore();
             g.shadowBlur = 0;
         }
         else if (l.kind === 'heart')
@@ -1560,6 +1734,20 @@ function drawWorld() {
             g.fillRect(-9, -9, 18, 18);
             g.restore();
         }
+    if (!hubActive && run.floor >= 1) {
+        const entrance = rooms[0];
+        if (entrance && distance({ x: px, y: py }, { x: entrance.cx, y: entrance.cy }) < 600) {
+            g.fillStyle = '#b1a0fb';
+            g.font = 'bold 17px sans-serif';
+            g.textAlign = 'center';
+            g.fillText(run.floor === 1 ? 'PORTAL DE EXTRAÇÃO · [E]' : 'ESCADA DE RETORNO · [E]', entrance.cx, entrance.cy - 130);
+            g.strokeStyle = '#9e85fb';
+            g.lineWidth = 5;
+            g.beginPath();
+            g.arc(entrance.cx, entrance.cy, 68, 0, Math.PI * 2);
+            g.stroke();
+        }
+    }
     for (const p of particles) {
         const o = clamp(p.life / p.max, 0, 1);
         g.globalAlpha = o;
@@ -1610,6 +1798,189 @@ function drawWorld() {
     }
     g.restore();
 }
+let sessionTimer = 0;
+const packFloor = (value) => ({ world: [...value.world], blocked: [...value.blocked], rooms: value.rooms, mobs: value.mobs, loot: value.loot, sigils: value.sigils });
+const unpackFloor = (value) => ({ world: new Set(value.world), blocked: new Set(value.blocked), rooms: value.rooms, mobs: value.mobs, loot: value.loot, sigils: value.sigils });
+function clearSession() { try {
+    localStorage.removeItem(SESSION_KEY);
+}
+catch { } }
+function persistSession() { if (hubActive || !run || run.hp <= 0)
+    return; try {
+    const memory = [...floorMemory].map(([id, f]) => [id, packFloor(f)]);
+    const raw = { version: 1, run, world: [...world], blocked: [...blocked], rooms, mobs, loot, px, py, currentId: current?.id ?? 0, memory, nextMob };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(raw));
+}
+catch { } }
+function restoreSession() {
+    try {
+        const data = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+        if (!data || data.version !== 1 || !data.run || !Array.isArray(data.rooms) || !Array.isArray(data.world) || !Array.isArray(data.mobs) || !Array.isArray(data.loot) || data.world.length > 15000 || data.mobs.length > 1500 || data.run.hp <= 0 || !['wanderer', 'bulwark', 'arcanist'].includes(data.run.classId))
+            return false;
+        run = data.run;
+        run.cargo ||= [];
+        run.scrolls ||= 0;
+        rooms = data.rooms;
+        world = new Set(data.world);
+        blocked = new Set(data.blocked);
+        mobs = data.mobs;
+        loot = data.loot;
+        shots = [];
+        particles = [];
+        floorMemory = new Map((data.memory || []).map(([id, f]) => [id, unpackFloor(f)]));
+        px = data.px;
+        py = data.py;
+        nextMob = data.nextMob || 1;
+        current = rooms.find(q => q.id === data.currentId) || rooms[0] || null;
+        camera.x = px - W / 2;
+        camera.y = py - H / 2;
+        hubActive = false;
+        mode = 'playing';
+        el('#hud').classList.remove('hidden');
+        el('#hub-status').classList.add('hidden');
+        el('#pause-button').classList.remove('hidden');
+        el('#footer-hint').textContent = 'EXPEDIÇÃO · I MOCHILA · R RETORNO (4s) · E NÓ ZERO · WASD · ESPAÇO · Q';
+        showNotice('EXPEDIÇÃO RECUPERADA. A MASMORRA NÃO MUDOU.', 3.5);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+window.addEventListener('pagehide', () => { if (!hubActive && run?.hp > 0)
+    persistSession(); });
+// The Anchor Chamber is a permanent, walkable place. It is NEVER procedurally regenerated.
+function enterHub() { clearSession(); hubActive = true; returnCast = 0; castStart = null; run = createRun(save.preferredClass || 'wanderer'); world = new Set(); blocked = new Set(); rooms = []; mobs = []; shots = []; loot = []; particles = []; current = null; for (let x = -12; x <= 12; x++)
+    for (let y = -8; y <= 8; y++)
+        world.add(tileKey(HUB.x / T + x, HUB.y / T + y)); px = HUB.x; py = HUB.y + 35; camera.x = px - W / 2; camera.y = py - H / 2; mode = 'hub'; el('#overlay').innerHTML = ''; el('#hud').classList.add('hidden'); el('#hub-status').classList.remove('hidden'); updateHubLabel(); el('#pause-button').classList.remove('hidden'); el('#footer-hint').textContent = 'CÂMARA ÂNCORA · WASD MOVER · E INTERAGIR · I MOCHILA · ESC PAUSAR'; showLocation('CÂMARA ÂNCORA'); }
+function updateHub(dt) { globalTime += dt; noticeTimer -= dt; locationTimer -= dt; let dx = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft')), dy = Number(keys.has('s') || keys.has('arrowdown')) - Number(keys.has('w') || keys.has('arrowup')); const len = Math.hypot(dx, dy) || 1; moveWithCollision({ get x() { return px; }, set x(v) { px = v; }, get y() { return py; }, set y(v) { py = v; } }, dx / len * 240 * dt, dy / len * 240 * dt, 15); camera.x += (px - W / 2 - camera.x) * Math.min(1, dt * 8); camera.y += (py - H / 2 - camera.y) * Math.min(1, dt * 8); if (noticeTimer <= 0)
+    el('#notice').style.opacity = '0'; if (locationTimer <= 0)
+    el('#location-toast').style.opacity = '0'; }
+function updateHubLabel() { el('#hub-echoes').textContent = String(save.echoes); el('#hub-scrolls').textContent = String(save.portalScrolls || 0); el('#hub-extractions').textContent = String(save.extractions || 0); }
+function drawHubStations() {
+    for (const station of hubStations) {
+        const near = distance(station, { x: px, y: py }) < 135;
+        g.save();
+        g.translate(station.x, station.y);
+        g.shadowColor = station.color;
+        g.shadowBlur = near ? 35 : 17;
+        g.fillStyle = '#1b2438';
+        g.strokeStyle = station.color;
+        g.lineWidth = near ? 7 : 4;
+        g.beginPath();
+        g.roundRect(-75, -49, 150, 98, 15);
+        g.fill();
+        g.stroke();
+        g.shadowBlur = 0;
+        if (station.id === 'portal') {
+            g.strokeStyle = '#bd9eff';
+            g.lineWidth = 7;
+            g.beginPath();
+            g.ellipse(0, 0, 42, 44, 0, 0, Math.PI * 2);
+            g.stroke();
+            glow(0, 0, 65, 'rgba(157,115,250,ALPHA)', .27);
+        }
+        else if (station.id === 'forge') {
+            image('altar', 0, -7, 70, 71);
+            g.fillStyle = '#e4a570';
+            g.fillRect(-37, 29, 74, 12);
+        }
+        else if (station.id === 'merchant') {
+            image('chest', 0, 0, 76, 69);
+        }
+        else if (station.id === 'vault') {
+            image('chest', 0, 0, 77, 72);
+        }
+        else if (station.id === 'altar') {
+            image('altar', 0, -8, 69, 77);
+        }
+        else {
+            g.fillStyle = '#c9b9f0';
+            g.font = 'bold 45px Georgia';
+            g.textAlign = 'center';
+            g.fillText('✧', 0, 11);
+        }
+        g.textAlign = 'center';
+        g.font = 'bold 13px sans-serif';
+        g.fillStyle = '#f7e9c9';
+        g.fillText(station.label, 0, -67);
+        if (near) {
+            g.fillStyle = '#ffe1a4';
+            g.font = 'bold 15px sans-serif';
+            g.fillText('[ E ] INTERAGIR', 0, 84);
+        }
+        g.restore();
+    }
+    g.font = 'bold 17px Georgia';
+    g.fillStyle = '#dfcba6';
+    g.textAlign = 'center';
+    g.fillText('CÂMARA ÂNCORA', HUB.x, HUB.y - 385);
+    g.font = '13px sans-serif';
+    g.fillText('FORA DESTAS PAREDES, TUDO SE REFAZ', HUB.x, HUB.y - 356);
+}
+function interactHub() { if (mode !== 'hub')
+    return; const st = hubStations.find(q => distance(q, { x: px, y: py }) < 145); if (!st) {
+    showNotice('APROXIME-SE DE UMA ESTRUTURA PARA INTERAGIR', 2);
+    return;
+} if (st.id === 'portal') {
+    begin(save.preferredClass || 'wanderer');
+    showNotice('UMA NOVA MASMORRA SE FORMOU · RETORNE VIVO COM SEU ESPÓLIO', 4);
+    return;
+} if (st.id === 'forge')
+    openForge(); if (st.id === 'merchant')
+    openMerchant(); if (st.id === 'vault')
+    openStash(); if (st.id === 'altar')
+    openAltar(); if (st.id === 'archive')
+    showArchive(); }
+function backHome() { enterHub(); }
+function closeHubModal() { el('#overlay').innerHTML = ''; mode = 'hub'; updateHubLabel(); }
+function openBag(fromHub) {
+    const cargo = fromHub ? Object.entries(save.stash || {}).filter(([, q]) => q > 0).map(([id, qty]) => ({ id, qty })) : run.cargo;
+    mode = 'choice';
+    showOverlay(`<div class="modal"><header>✦ ${fromHub ? 'ARMAZÉM' : 'MOCHILA DO VIAJANTE'}</header><h2>${fromHub ? 'Espólio assegurado' : 'Espólio em risco'}</h2><p class="lead">${fromHub ? 'Os materiais no Cofre não desaparecem quando você morre.' : 'Extraia pelo portal do primeiro nó ou use um Pergaminho de Retorno. Ao morrer, apenas 25% dos materiais comuns são recuperados.'}</p><div class="stat-row"><div class="stat"><b>${cargo.length} / ${BAG_SLOTS}</b><small>TIPOS DE MATERIAL</small></div><div class="stat"><b>${fromHub ? (save.portalScrolls || 0) : run.scrolls}</b><small>PERGAMINHOS</small></div></div><div class="cargo-grid">${cargo.length ? cargo.map(v => `<div class="cargo-entry ${MATERIALS[v.id]?.rare ? 'rare' : ''}"><strong>${escapeHtml(MATERIALS[v.id]?.name || v.id)}</strong><span>×${v.qty}</span><small>${MATERIALS[v.id]?.rare ? 'RARO' : 'COMUM'}</small></div>`).join('') : '<div class="muted">Ainda não há materiais.</div>'}</div><div class="actions"><button id="close-bag" class="btn">FECHAR · VOLTAR AO JOGO</button></div></div>`);
+    el('#close-bag').onclick = () => { if (fromHub)
+        closeHubModal();
+    else
+        dismiss(); };
+}
+function openStash() { mode = 'choice'; const stash = save.stash || {}; showOverlay(`<div class="modal"><header>◈ CÂMARA ÂNCORA</header><h2>O Cofre</h2><p class="lead">Todo material recuperado em extração é transferido automaticamente para cá. A morte nunca esvazia o Cofre.</p><div class="cargo-grid">${Object.entries(MATERIALS).map(([id, m]) => `<div class="cargo-entry ${m.rare ? 'rare' : ''}"><strong>${m.name}</strong><span>×${stash[id] || 0}</span><small>${m.rare ? 'RARO' : 'COMUM'}</small></div>`).join('')}</div><div class="stat-row"><div class="stat"><b>${save.portalScrolls || 0}</b><small>PERGAMINHOS SEGUROS</small></div><div class="stat"><b>${save.extractions || 0}</b><small>EXTRAÇÕES VIVAS</small></div></div><div class="actions"><button class="btn" id="close-stash">VOLTAR À BASE</button></div></div>`); el('#close-stash').onclick = closeHubModal; }
+function openMerchant() {
+    mode = 'choice';
+    const list = Object.entries(save.stash || {}).filter(([k, q]) => q > 0 && MATERIALS[k]);
+    const options = list.map(([id, q], i) => card(MATERIALS[id].name, 'Vender ' + q + ' unidades por ' + q * MATERIALS[id].value + ' Ecos.', 'ESPÓLIO · ' + q + 'x', '◆', i)).join('');
+    showOverlay(`<div class="modal"><header>✦ MERCADOR DA ÂNCORA</header><h2>Mercadorias recuperadas</h2><p class="lead">Venda materiais armazenados ou compre um Pergaminho de Retorno. A loja possui apenas uma unidade entre duas extrações.</p><div class="stat-row"><div class="stat"><b>${save.echoes}</b><small>ECOS</small></div><div class="stat"><b>${Math.max(0, 1 - save.shopPurchased) || 0}</b><small>PERGAMINHO DISPONÍVEL</small></div></div><div class="cards">${options || '<p>Volte de uma expedição com espólio.</p>'}</div><div class="actions"><button class="btn" id="buy-scroll">COMPRAR PERGAMINHO · 90 ECOS</button><button class="btn alt" id="close-merchant">VOLTAR À BASE</button></div></div>`);
+    el('#close-merchant').onclick = closeHubModal;
+    el('#buy-scroll').onclick = () => { const sv = save; if ((sv.shopPurchased || 0) >= 1) {
+        showNotice('MERCADOR SEM PERGAMINHOS — VOLTE APÓS UMA EXPEDIÇÃO', 3);
+        return;
+    } if (save.echoes < 90) {
+        showNotice('ECOS INSUFICIENTES', 2);
+        return;
+    } save.echoes -= 90; sv.shopPurchased = 1; save.portalScrolls = (save.portalScrolls || 0) + 1; writeSave(); openMerchant(); };
+    el('#overlay').querySelectorAll('[data-choice]').forEach(b => b.addEventListener('click', () => { const row = list[Number(b.dataset.choice)]; if (!row)
+        return; const [id, q] = row; save.echoes += q * MATERIALS[id].value; save.stash[id] = 0; writeSave(); openMerchant(); sound('pick'); }));
+}
+function craftNeed(need, echoes = 0) { return save.echoes >= echoes && Object.entries(need).every(([id, q]) => (save.stash?.[id] || 0) >= q); }
+function spendCraft(need, echoes = 0) { if (!craftNeed(need, echoes))
+    return false; for (const [id, q] of Object.entries(need))
+    save.stash[id] -= q; save.echoes -= echoes; writeSave(); return true; }
+function openForge() {
+    mode = 'choice';
+    const recipes = [
+        { name: 'Pergaminho de Retorno', detail: '2 Ferro da Cripta + 1 Brasa Antiga. Teleporte seguro de 4 segundos.', need: { scrap: 2, ember: 1 }, echo: 0, do: () => save.portalScrolls = (save.portalScrolls || 0) + 1 },
+        { name: 'Estoque de Poções', detail: '3 Presas + 1 Fio Espectral. +1 poção na próxima expedição.', need: { fang: 3, cloth: 1 }, echo: 0, do: () => save.preparedPotion = Math.min(2, (save.preparedPotion || 0) + 1) },
+        { name: 'Martelo da Próxima Jornada', detail: '3 Ferro + 2 Brasa Antiga. Inicia a próxima expedição com um martelo.', need: { scrap: 3, ember: 2 }, echo: 30, do: () => save.preparedWeapon = 'hammer' },
+        { name: 'Cetro da Próxima Jornada', detail: '3 Fio Espectral + 2 Fragmentos da Fenda. Inicia a próxima expedição com cetro.', need: { cloth: 3, rift: 2 }, echo: 30, do: () => save.preparedWeapon = 'staff' },
+        { name: 'Trovão Curto', detail: '2 Núcleos de Guardião + 3 Ferro. Inicia a próxima expedição com escopeta.', need: { core: 2, scrap: 3 }, echo: 50, do: () => save.preparedWeapon = 'shotgun' }
+    ];
+    showOverlay(`<div class="modal"><header>⚒ FORJA DA CÂMARA ÂNCORA</header><h2>Todo poder tem um preço.</h2><p class="lead">Cada criação consome materiais extraídos. Armas fabricadas são preparadas para a próxima expedição, não aumentam dano permanentemente.</p><div class="stat-row"><div class="stat"><b>${save.echoes}</b><small>ECOS</small></div><div class="stat"><b>${save.preparedWeapon ? weaponNames[save.preparedWeapon] : 'NENHUMA'}</b><small>ARMA PREPARADA</small></div></div><div class="cards">${recipes.map((r, i) => card(r.name, r.detail, craftNeed(r.need, r.echo) ? 'PRONTO PARA CRIAR' : 'FALTAM MATERIAIS', '⚒', i)).join('')}</div><div class="actions"><button class="btn alt" id="close-forge">VOLTAR À BASE</button></div></div>`);
+    el('#close-forge').onclick = closeHubModal;
+    el('#overlay').querySelectorAll('[data-choice]').forEach(b => b.addEventListener('click', () => { const r = recipes[Number(b.dataset.choice)]; if (!r || !spendCraft(r.need, r.echo)) {
+        showNotice('MATERIAIS OU ECOS INSUFICIENTES', 2.8);
+        return;
+    } r.do(); writeSave(); sound('level'); openForge(); }));
+}
+function openAltar() { mode = 'choice'; showOverlay(`<div class="modal"><header>✦ ALTAR DA PREPARAÇÃO</header><h2>Escolha quem enfrenta a Fratura.</h2><p class="lead">Sua escolha fica pronta para a próxima travessia. Classes têm armas e movimentos únicos; o nível reinicia a cada expedição.</p><div class="cards">${['wanderer', 'bulwark', 'arcanist'].map((cls, i) => card(classNames[cls], cls === 'bulwark' ? 'Martelo + arco · Força e sobrevivência' : cls === 'arcanist' ? 'Cetro + escopeta · Magia e controle' : 'Espada + revólver · Precisão e esquiva', save.preferredClass === cls ? 'SELECIONADO' : 'ESCOLHER', ['⚔', '⚒', '✧'][i], i)).join('')}</div><div class="actions"><button class="btn" id="altar-legacy">MELHORIAS PERMANENTES</button><button class="btn alt" id="altar-back">VOLTAR À BASE</button></div></div>`); el('#altar-back').onclick = closeHubModal; el('#altar-legacy').onclick = showVault; el('#overlay').querySelectorAll('[data-choice]').forEach(b => b.addEventListener('click', () => { save.preferredClass = ['wanderer', 'bulwark', 'arcanist'][Number(b.dataset.choice)]; writeSave(); run.classId = save.preferredClass; openAltar(); sound('pick'); })); }
 function drawBackdrop() {
     g.fillStyle = '#070c15';
     g.fillRect(0, 0, W, H);
@@ -1633,7 +2004,7 @@ function render() {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.imageSmoothingEnabled = false;
     drawBackdrop();
-    if (run && mode !== 'menu' && mode !== 'archive')
+    if (run && (hubActive || mode !== 'menu' && mode !== 'archive'))
         drawWorld();
     if (screenFlash > 0) {
         g.fillStyle = `rgba(250,75,105,${screenFlash * .5})`;
@@ -1655,6 +2026,9 @@ function render() {
 }
 let previous = 0;
 function frame(t) { const dt = Math.min(.033, (t - previous) / 1000 || .016); previous = t; if (mode === 'playing' && run)
-    tick(dt); render(); requestAnimationFrame(frame); }
-menu();
+    tick(dt);
+else if (mode === 'hub' && run)
+    updateHub(dt); render(); requestAnimationFrame(frame); }
+if (!restoreSession())
+    enterHub();
 requestAnimationFrame(frame);
