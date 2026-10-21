@@ -51,7 +51,14 @@ let nextMob=1,attackCD=0,dashCD=0,dashTime=0,dashDir={x:0,y:0},specialCD=0,hitIn
 let mouseDown=false,charging=0,chargeStarted=false,fireHeld=false;const audioCooldown:Record<string,number>={};let tuneTime=0;let tuneStep=0;let keys=new Set<string>();let mapVisible=true;let audioOn=true;let audioCtx:AudioContext|null=null;
 let hubActive=false,returnCast=0,castStart:XY|null=null,hubStatus='';
 const HUB={x:4140,y:3300};
-const hubStations=[{id:'portal',label:'PORTAL DA FRATURA',x:HUB.x,y:HUB.y-205,color:'#9d8cf5'},{id:'forge',label:'FORJA',x:HUB.x-410,y:HUB.y-145,color:'#e6ab6c'},{id:'merchant',label:'MERCADOR',x:HUB.x+410,y:HUB.y-145,color:'#eac77f'},{id:'vault',label:'COFRE',x:HUB.x+410,y:HUB.y+145,color:'#84d7b9'},{id:'archive',label:'ARQUIVO',x:HUB.x-410,y:HUB.y+145,color:'#a6a6eb'},{id:'altar',label:'ALTAR DE PREPARAÇÃO',x:HUB.x,y:HUB.y+215,color:'#e6b4c2'}];
+const hubStations=[
+ {id:'portal',label:'PORTAL DA FRATURA',x:HUB.x,y:HUB.y-397,color:'#9d8cf5'},
+ {id:'forge',label:'FORJA',x:HUB.x-560,y:HUB.y-218,color:'#e6ab6c'},
+ {id:'merchant',label:'MERCADOR',x:HUB.x+560,y:HUB.y-218,color:'#eac77f'},
+ {id:'vault',label:'COFRE',x:HUB.x+560,y:HUB.y+218,color:'#84d7b9'},
+ {id:'archive',label:'ARQUIVO',x:HUB.x-560,y:HUB.y+218,color:'#a6a6eb'},
+ {id:'altar',label:'ALTAR DE PREPARAÇÃO',x:HUB.x,y:HUB.y+397,color:'#e6b4c2'}
+];
 type FloorMemory={world:Set<string>;blocked:Set<string>;rooms:Room[];mobs:Mob[];loot:Loot[];sigils:number;props:SceneProp[]};
 let floorMemory=new Map<number,FloorMemory>();
 let locationLabel='',noticeTimer=0,locationTimer=0;let bossCurrent:Mob|null=null;let xpQueue=0;let lastStep=0;
@@ -127,9 +134,13 @@ function combatGateCollision(x:number,y:number,r=0){
 
 function stationCollision(x:number,y:number,r:number){
  if(!hubActive)return false;
- return hubStations.some(s=>Math.hypot(x-s.x,y-s.y)<r+(
-   s.id==='portal'?39:s.id==='merchant'?61:s.id==='archive'?66:s.id==='forge'?57:s.id==='vault'?62:49
- ));
+ return hubStations.some(s=>{
+   const dx=x-s.x,dy=y-s.y;
+   const sx=(dx-dy)*ISO_SX,sy=(dx+dy)*ISO_SY;
+   const width=s.id==='archive'?100:s.id==='merchant'?99:s.id==='forge'?89:s.id==='vault'?68:s.id==='portal'?44:47;
+   const depth=s.id==='archive'?28:s.id==='merchant'?30:s.id==='forge'?35:s.id==='vault'?32:s.id==='portal'?33:22;
+   return Math.abs(sx)<width+r*1.4&&Math.abs(sy)<depth+r*.75;
+ });
 }
 function addSceneProp(tx:number,ty:number,kind:SceneProp['kind']){
  const key=tileKey(tx,ty);if(!world.has(key)||blocked.has(key))return false;
@@ -652,7 +663,39 @@ function restoreSession():boolean{try{const data=JSON.parse(localStorage.getItem
 window.addEventListener('pagehide',()=>{if(!hubActive&&run?.hp>0)persistSession();});
 
 // The Anchor Chamber is a permanent, walkable place. It is NEVER procedurally regenerated.
-function enterHub(){clearSession();hubActive=true;returnCast=0;castStart=null;run=createRun(save.preferredClass||'wanderer');world=new Set();blocked=new Set();sceneProps=[];rooms=[];mobs=[];shots=[];loot=[];particles=[];current=null;for(let x=-13;x<=13;x++)for(let y=-9;y<=9;y++){const core=Math.abs(x)<=6&&Math.abs(y)<=5;const forge=x>=-13&&x<=-6&&y>=-6&&y<=-1;const archive=x>=-13&&x<=-6&&y>=1&&y<=7;const merchant=x>=6&&x<=13&&y>=-6&&y<=-1;const vault=x>=6&&x<=13&&y>=1&&y<=7;const portal=Math.abs(x)<=4&&y>=-9&&y<=-4;const altar=Math.abs(x)<=4&&y>=4&&y<=9;if(core||forge||archive||merchant||vault||portal||altar)world.add(tileKey(HUB.x/T+x,HUB.y/T+y));}for(const [x,y] of [[-5,-4],[5,-4],[-5,4],[5,4],[-9,-5],[9,-5],[-9,5],[9,5]])addSceneProp(HUB.x/T+x,HUB.y/T+y,'pillar');refreshStructuralColliders();px=HUB.x;py=HUB.y+35;camera.x=px-W/2;camera.y=py-H/2;mode='hub';el('#overlay').innerHTML='';el('#hud').classList.add('hidden');el('#hub-status').classList.remove('hidden');updateHubLabel();el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='CÂMARA ÂNCORA · WASD MOVER · E INTERAGIR · I MOCHILA · ESC PAUSAR';showLocation('CÂMARA ÂNCORA');}
+function enterHub(){
+ clearSession();hubActive=true;returnCast=0;castStart=null;
+ run=createRun(save.preferredClass||'wanderer');
+ world=new Set();blocked=new Set();sceneProps=[];rooms=[];mobs=[];shots=[];loot=[];particles=[];current=null;
+ const hx=HUB.x/T,hy=HUB.y/T;
+ const fill=(x0:number,x1:number,y0:number,y1:number)=>{
+  for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)world.add(tileKey(hx+x,hy+y));
+ };
+ // Seven connected architectural rooms; corridors are visible, not a square.
+ fill(-5,5,-3,3);           // central safe nave
+ fill(-4,4,-9,-5);          // portal sanctuary
+ fill(-2,2,-5,-3);          // portal approach
+ fill(-4,4,5,9);           // altar chapel
+ fill(-2,2,3,5);           // chapel approach
+ fill(-13,-7,-7,-1);       // forge workshop
+ fill(-13,-7,1,7);         // library
+ fill(7,13,-7,-1);        // merchant bazaar
+ fill(7,13,1,7);          // vault
+ fill(-7,-5,-4,-2);       // forge doorway
+ fill(-7,-5,2,4);         // archive doorway
+ fill(5,7,-4,-2);         // market doorway
+ fill(5,7,2,4);          // vault doorway
+ // These pillars have physical blocks; main circulation stays open.
+ for(const [x,y] of [[-12,-6],[-12,6],[12,-6],[12,6],[-4,-2],[4,-2],[-4,2],[4,2]])
+  addSceneProp(hx+x,hy+y,'pillar');
+ refreshStructuralColliders();
+ px=HUB.x;py=HUB.y;camera.x=px-W/2;camera.y=py-H/2;mode='hub';
+ el('#overlay').innerHTML='';el('#hud').classList.add('hidden');
+ el('#hub-status').classList.remove('hidden');updateHubLabel();
+ el('#pause-button').classList.remove('hidden');
+ el('#footer-hint').textContent='CÂMARA ÂNCORA · WASD MOVER · E INTERAGIR · I MOCHILA · ESC PAUSAR';
+ showLocation('CÂMARA ÂNCORA');
+}
 function updateHub(dt:number){globalTime+=dt;noticeTimer-=dt;locationTimer-=dt;let dx=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),dy=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));const direction=isoMove(dx,dy);moveWithCollision({get x(){return px;},set x(v:number){px=v;},get y(){return py;},set y(v:number){py=v;}},direction.x*240*dt,direction.y*240*dt,15);camera.x+=(px-W/2-camera.x)*Math.min(1,dt*8);camera.y+=(py-H/2-camera.y)*Math.min(1,dt*8);if(noticeTimer<=0)el('#notice').style.opacity='0';if(locationTimer<=0)el('#location-toast').style.opacity='0';}
 function updateHubLabel(){el('#hub-echoes').textContent=String(save.echoes);el('#hub-scrolls').textContent=String(save.portalScrolls||0);el('#hub-extractions').textContent=String(save.extractions||0);}
 function drawHubStations(){
@@ -947,7 +990,7 @@ function drawIsoWorld(){
   if(hubActive){if(h%91===0){queue.push({depth:wx+wy,render:()=>{const p=isoPoint(wx,wy);g.fillStyle='#9ca9a035';g.fillRect(p.x-2,p.y-8,5,4);}});}}
  }
  for(const p of sceneProps)queue.push({depth:p.x+p.y+5,render:()=>isoSceneProp(p)});
- if(hubActive){for(const s of hubStations)queue.push({depth:s.x+s.y,render:()=>isoStation(s.id,s.x,s.y)});for(const [dx,dy] of [[-720,-305],[720,-305],[-700,295],[700,295],[-150,-340],[150,-340],[-150,370],[150,370]]){const x=HUB.x+dx,y=HUB.y+dy;queue.push({depth:x+y,render:()=>isoTorch(x,y)});}}
+ if(hubActive){for(const s of hubStations)queue.push({depth:s.x+s.y,render:()=>isoStation(s.id,s.x,s.y)});}
  else{
   for(const r of rooms)if(r.seen){queue.push({depth:r.cx+r.cy-20,render:()=>isoDungeonDecor(r)});}
   for(const l of loot)queue.push({depth:l.x+l.y,render:()=>isoLoot(l)});
@@ -957,7 +1000,7 @@ function drawIsoWorld(){
  }
  queue.push({depth:px+py+10,render:isoActorPlayer});
  queue.sort((a,b)=>a.depth-b.depth);for(const item of queue)item.render();
- if(hubActive){for(const s of hubStations){const p=isoPoint(s.x,s.y);if(distance({x:px,y:py},s)<150)isoText(`[ E ] ${s.label}`,p.x,p.y-158,15,'#f2ddb5');}
+ if(hubActive){for(const s of hubStations){const p=isoPoint(s.x,s.y);if(distance({x:px,y:py},s)<150)isoText(`[ E ] ${s.label}`,p.x,p.y-185,15,'#f2ddb5');}
   }
  g.restore();
 }
