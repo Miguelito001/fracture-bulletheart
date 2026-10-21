@@ -599,7 +599,10 @@ function isoCharacter(id:string,x:number,y:number,w:number,h:number,alpha=1){
 function isoTorch(x:number,y:number){const p=isoPoint(x,y);g.fillStyle='#564937';g.fillRect(p.x-4,p.y-43,8,39);g.fillStyle='#f9bb6b';g.beginPath();g.ellipse(p.x,p.y-47+Math.sin(globalTime*7+x)*3,6,13,0,0,Math.PI*2);g.fill();g.fillStyle='#fff1bb';g.fillRect(p.x-2,p.y-50,4,6);isoGlow(x,y-90,74,'#ef98562e');}
 function isoWall(x:number,y:number,orient:'north'|'west',height:number){
  // Replace temporary vector walls with real CC0 carved-stone masonry.
- if(kenney(orient==='north'?'stoneWall_S':'stoneWall_E', (x+(orient==='north'?.5:0))*T,(y+(orient==='west'?.5:0))*T,1,.98))return;
+ const wallPos={x:(x+.5)*T,y:(y+.5)*T};
+ const nearPlayer=Math.hypot(px-wallPos.x,py-wallPos.y);
+ const wallOpacity=nearPlayer<120?.29:nearPlayer<210?.66:.92;
+ if(kenney(orient==='north'?'stoneWall_S':'stoneWall_E', (x+(orient==='north'?.5:0))*T,(y+(orient==='west'?.5:0))*T,1,wallOpacity))return;
  const a=orient==='north'?isoPoint(x*T,y*T):isoPoint(x*T,y*T),b=orient==='north'?isoPoint((x+1)*T,y*T):isoPoint(x*T,(y+1)*T);
  const u={x:a.x,y:a.y-height},v={x:b.x,y:b.y-height};
  const z=orient==='north'?'#394453':'#263747';
@@ -713,15 +716,15 @@ function isoAltar(x:number,y:number){
 }
 function isoPortal(x:number,y:number){
  if(assets['kenney-stoneTile_S']?.naturalWidth){
-  kenney('stoneWallArchway_S',x,y-33,2.25);
-  kenney('stoneWallColumn_S',x-99,y-40,1.12);kenney('stoneWallColumn_S',x+99,y-40,1.12);
+  kenney('stoneWallArchway_S',x,y-50,1.43);
+  kenney('stoneWallColumn_S',x-81,y-44,.91);kenney('stoneWallColumn_S',x+81,y-44,.91);
   const p=isoPoint(x,y-25),wave=Math.sin(globalTime*1.8)*5;
   g.save();g.shadowColor='#a58aff';g.shadowBlur=33;
   const grad=g.createRadialGradient(p.x-8,p.y-85,6,p.x,p.y-85,85);
   grad.addColorStop(0,'#a5a9e4f0');grad.addColorStop(.4,'#553a8bdc');grad.addColorStop(.8,'#201537bc');grad.addColorStop(1,'#120d2290');
   g.fillStyle=grad;g.beginPath();g.ellipse(p.x,p.y-85,38+wave*.45,64+wave,0,0,Math.PI*2);g.fill();g.restore();
   isoGlow(x,y-95,176,'#986cf739');
-  kenney('stoneSteps_S',x,y+92,1.55);return;
+  kenney('stoneSteps_S',x,y+92,.68);return;
  }
 
  isoRug(x,y+49,126,68,'#31304c');

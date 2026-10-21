@@ -32,6 +32,9 @@ try:
   run=page.evaluate("() => ({hub:hubActive,mode,rooms:rooms.length,floor:run.floor})")
   assert not run['hub'] and run['mode']=='playing' and run['rooms']>=10,run
   page.screenshot(path=str(ROOT/'artpass-dungeon-smoke.png'))
+  page.evaluate("() => {const r=rooms.find(r=>r.kind==='battle');if(r){px=r.cx;py=r.cy;visitRoom(r);}}")
+  page.wait_for_timeout(450)
+  page.screenshot(path=str(ROOT/'artpass-combat-smoke.png'))
   assert not errors,'JS errors: '+str(errors)
   print('GAMEPLAY OK:',run,'PAGE ERRORS: 0',flush=True)
   b.close()

@@ -33,8 +33,15 @@ jobs:
           mkdir -p qa/screenshots
           cp artpass-hub-smoke.png qa/screenshots/hub-latest.png
           cp artpass-dungeon-smoke.png qa/screenshots/dungeon-latest.png
+          cp artpass-combat-smoke.png qa/screenshots/combat-latest.png
+          python - <<'PY'
+          from PIL import Image
+          im=Image.open('artpass-hub-smoke.png').convert('RGB')
+          im.thumbnail((950,540))
+          im.save('qa/screenshots/hub-small.jpg',quality=72,optimize=True)
+          PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add qa/screenshots/*.png
+          git add qa/screenshots/*.png qa/screenshots/*.jpg
           git commit -m "ci: capture isometric screenshots" || exit 0
           git push origin feature/isometric-v2
