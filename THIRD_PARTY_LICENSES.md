@@ -53,3 +53,12 @@ in this version because the asset archives could not be fetched:
 - Puny Dungeon: https://opengameart.org/content/16x16-puny-dungeon-tileset
 
 Do not remove these notices when redistributing the included icon assets.
+
+
+## Kenney Isometric Miniature Dungeon & Kenney Isometric Miniature Library — CC0-1.0
+
+The feature/isometric-v2 art pass bundles 48 actual PNG images for floors, walls, pillars, portals, props, furniture, chests, bookshelves and physical hub scenery. **Original artist: Kenney**, licensed **Creative Commons Zero 1.0 Universal** (public domain dedication). Attribution is voluntary; we provide it here and in ARTPASS_CC0.md.
+
+Original sources: https://kenney.nl/assets/isometric-miniature-dungeon and https://kenney.nl/assets/isometric-miniature-library
+
+Pinned public repository mirror: https://github.com/GeorgeQLe/assets-2d-isometric, commit 0d66f7aebf6faf651ab680c9b83b2d8a40e666a1. The packaged assets/kenney/manifest.json identifies individual original URLs and SHA-256 values. The imported PNG files are resized, not AI-synthesized, and are hosted with the game; no runtime third-party host is required.
