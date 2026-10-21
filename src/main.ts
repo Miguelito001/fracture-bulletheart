@@ -4,6 +4,7 @@ type XY = {x:number;y:number};
 // The authored prefab file loads before game.js; no runtime room-shape generation.
 type RoomPrefab={id:string;kind:RoomKind;family:number;rows:string[];props:[number,number,SceneProp['kind']][];spawns:[number,number][]};
 declare const FRACTURE_ROOM_PREFABS:ReadonlyArray<RoomPrefab>;
+let selectedRoomPool:string[]=[];
 type RoomKind = 'start'|'battle'|'elite'|'treasure'|'shrine'|'forge'|'heal'|'boss'|'secret';
 type MobKind = 'crawler'|'ranger'|'knight'|'bomber'|'wisp'|'elite'|'boss';
 type Weapon = 'sword'|'hammer'|'bow'|'gun'|'shotgun'|'staff'|'chakram';
@@ -245,6 +246,7 @@ function generateFloor(){world=new Set();blocked=new Set();rooms=[];mobs=[];shot
    blueprintCandidates.push(...shuffled.slice(0,quotas[kind]));
  }
  if(blueprintCandidates.length!==100||FRACTURE_ROOM_PREFABS.length!==200)throw Error('Biblioteca de salas inconsistente');
+ selectedRoomPool=blueprintCandidates.map(p=>p.id);
  const available=new Map<RoomKind,RoomPrefab[]>();
  for(const prefab of blueprintCandidates){
    const list=available.get(prefab.kind)||[];list.push(prefab);available.set(prefab.kind,list);
