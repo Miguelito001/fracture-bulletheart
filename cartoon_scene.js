@@ -272,5 +272,12 @@
       g.restore();
     }
   };
+  /* Replace remaining miniature/photographic props with the same CC0 voxel vocabulary. */
+  kenney=function(id,x,y,scale=1,opacity=1){
+    const wood=/barrel|wood|table|chest/i.test(id);
+    const crystal=/altar|display|book/i.test(id);
+    return voxel(wood?"14":crystal?"15":"09",x,y,scale*.82,0,opacity);
+  };
+  window.__fractureCartoonArtPass=true;
   /* The bottom HUD remains interactive and all hotkeys/combat are unchanged. */
 })();
