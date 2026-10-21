@@ -18,7 +18,7 @@
     if(img && img.complete && img.naturalWidth) {
       g.save();g.globalAlpha=opacity;g.imageSmoothingEnabled=true;
       // Neutral stone, not luminous white cubes competing with actors and portal.
-      g.filter=["09","11","12"].includes(id)?"brightness(.69) saturate(.69) sepia(.10)":id==="13"?"brightness(.79) saturate(.70)":"none";
+      g.filter=["09","11","12"].includes(id)?"brightness(.69) saturate(.69) sepia(.10)":id==="13"?"brightness(.79) saturate(.70)":id==="15"?"brightness(.72) saturate(1.30) sepia(.17) hue-rotate(169deg)":"none";
       g.drawImage(img,p.x-w/2,p.y-27*scale-elevation,w,h);
       g.restore();return true;
     }
