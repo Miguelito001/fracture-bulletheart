@@ -1,4 +1,4 @@
-// FRACTURE — BULLETHEART ISOV2.1: Kenney CC0 isometric environment pass.
+// FRACTURE — BULLETHEART ISOV2.2: visual cohesion and Kenney CC0 asset corrections.
 // Player progress is saved locally. Kenney CC0 art is bundled locally; no CDN required.
 type XY = {x:number;y:number};
 type RoomKind = 'start'|'battle'|'elite'|'treasure'|'shrine'|'forge'|'heal'|'boss'|'secret';
@@ -561,6 +561,11 @@ function kenney(id:string,x:number,y:number,scale=1,opacity=1):boolean{
  const a=assets['kenney-'+id];if(!a?.naturalWidth)return false;
  const p=isoPoint(x,y),tw=119*scale,th=238*scale;
  g.save();g.globalAlpha=opacity;g.imageSmoothingEnabled=true;
+ // CC0 Kenney miniature sprites use a shared high transparent registration frame.
+ // Grade the architecture as cold, ruined masonry while retaining warm props.
+ const isFloor=/^(stoneTile|stoneUneven|stoneMissingTiles|stone_S|dirtTiles|planks)/.test(id);
+ const isMasonry=/^(stoneWall|stoneColumn|stoneStep|stairs)/.test(id);
+ g.filter=isFloor?'brightness(.52) contrast(1.12) saturate(.36) hue-rotate(155deg)':isMasonry?'brightness(.65) contrast(1.13) saturate(.49) hue-rotate(150deg)':'brightness(.77) contrast(1.09) saturate(.82)';
  // Source pack's 30/45-degree sprites are registered to their tile base.
  g.drawImage(a,Math.round(p.x-tw/2),Math.round(p.y-th*.73),tw,th);
  g.restore();return true;
@@ -569,7 +574,7 @@ function kenneyShadow(x:number,y:number,rx=42,ry=18){const p=isoPoint(x,y);g.sav
 let heroDirection=0,lastHeroX=Number.NaN,lastHeroY=Number.NaN;
 function isoCharacter(id:string,x:number,y:number,w:number,h:number,alpha=1){
  const p=isoPoint(x,y);g.fillStyle='#01040b7a';g.beginPath();g.ellipse(p.x,p.y,Math.max(17,w*.4),Math.max(8,w*.18),0,0,Math.PI*2);g.fill();
- if(['wanderer','bulwark','arcanist','knight','elite'].includes(id)){
+ if(['wanderer','bulwark','arcanist','crawler','ranger','knight','bomber','wisp','elite','boss'].includes(id)){
   let moving=false,dir=0;
   if(Math.abs(x-px)<1&&Math.abs(y-py)<1){
    const dx=x-lastHeroX,dy=y-lastHeroY;
@@ -581,9 +586,11 @@ function isoCharacter(id:string,x:number,y:number,w:number,h:number,alpha=1){
   const actor=assets[`kenney-male-${dir}-${seq}`];
   if(actor?.naturalWidth){
    g.save();g.globalAlpha=alpha;g.imageSmoothingEnabled=true;
-   const color=id==='arcanist'?'hue-rotate(58deg) saturate(1.25)':id==='bulwark'?'sepia(.28) saturate(1.4)':id==='elite'?'hue-rotate(290deg) contrast(1.18)':id==='knight'?'brightness(.76) saturate(.8)':'none';
+   const palette:Record<string,string>={wanderer:'brightness(.88) saturate(.85)',bulwark:'sepia(.27) brightness(.78)',arcanist:'hue-rotate(57deg) saturate(.9)',crawler:'hue-rotate(300deg) saturate(.7) brightness(.63)',ranger:'hue-rotate(88deg) saturate(.76) brightness(.70)',knight:'brightness(.55) saturate(.38)',bomber:'sepia(.67) saturate(1.4) brightness(.76)',wisp:'hue-rotate(167deg) saturate(.92) brightness(.98)',elite:'hue-rotate(275deg) saturate(.9) brightness(.66)',boss:'hue-rotate(295deg) saturate(1.4) brightness(.54) contrast(1.3)'};
+   const color=palette[id]||'none';
    g.filter=color;
-   const dw=w*2.2,dh=h*3.5;g.drawImage(actor,p.x-dw/2,p.y-dh*.89,dw,dh);
+   const scale=id==='boss'?1.08:id==='crawler'?.83:id==='wisp'?.87:1;
+   const dw=w*2.02*scale,dh=h*3.13*scale;g.drawImage(actor,p.x-dw/2,p.y-dh*.89,dw,dh);
    g.restore();return;
   }
  }
@@ -612,7 +619,8 @@ function isoFloorTile(tx:number,ty:number,hash:number){
  if(p.x<-140||p.x>W+140||p.y<-140||p.y>H+140)return false;
  const rx=T*ISO_SX,ry=T*ISO_SY;
  // Kenney ground tiles fully replace the procedural diamond when available.
- if(kenney(hash%31===0?'stoneUneven_S':hash%37===0?'stoneMissingTiles_S':hash%19===0?'dirtTiles_S':'stoneTile_S',cx,cy,.93,hubActive?.97:.91)){return true;}
+ const floorSprite=hash%167===0?'stoneMissingTiles_S':hash%101===0?'dirtTiles_S':hash%17===0?'stoneUneven_S':'stone_S';
+ if(kenney(floorSprite,cx,cy,.93,hubActive?.98:.95)){return true;}
 
  const palette=hubActive?['#303b43','#38454e','#33414b','#3a454b','#36404a','#2d3943']:['#30323f','#333943','#383c48','#313844','#333541','#353a43'];
  const base=palette[hash%palette.length];
@@ -623,7 +631,7 @@ function isoFloorTile(tx:number,ty:number,hash:number){
  return true;
 }
 function isoRug(x:number,y:number,rx:number,ry:number,c:string){const p=isoPoint(x,y);isoPolygon([{x:p.x,y:p.y-ry},{x:p.x+rx,y:p.y},{x:p.x,y:p.y+ry},{x:p.x-rx,y:p.y}],c,'#d9bf8070',3);isoPolygon([{x:p.x,y:p.y-ry*.68},{x:p.x+rx*.68,y:p.y},{x:p.x,y:p.y+ry*.68},{x:p.x-rx*.68,y:p.y}],'#211e3188','#d9bf8055',1);}
-function isoCrate(x:number,y:number,r=23){if(kenney('woodenCrate_S',x,y,r/23)){kenneyShadow(x,y,r*1.2,r*.65);return;} const p=isoPrism(x,y,r,32,'#93734d','#604932','#73553a');g.strokeStyle='#c8a46b';g.lineWidth=3;g.strokeRect(p.x-10,p.y-4,20,6);}
+function isoCrate(x:number,y:number,r=23){if(assets['kenney-woodenCrate_S']?.naturalWidth){kenneyShadow(x,y,r*1.2,r*.65);kenney('woodenCrate_S',x,y,r/23);return;} const p=isoPrism(x,y,r,32,'#93734d','#604932','#73553a');g.strokeStyle='#c8a46b';g.lineWidth=3;g.strokeRect(p.x-10,p.y-4,20,6);}
 function isoForge(x:number,y:number){
  if(assets['kenney-stoneTile_S']?.naturalWidth){
   kenneyShadow(x,y+24,122,51);
@@ -742,10 +750,10 @@ function isoDungeonDecor(r:Room){if(!r.seen)return;const p=isoPoint(r.cx,r.cy);i
 }
 function isoActorPlayer(){const p=isoPoint(px,py);if(hitInvuln>0&&Math.floor(globalTime*20)%2)g.globalAlpha=.55;
  isoCharacter(run.classId==='bulwark'?'bulwark':run.classId==='arcanist'?'arcanist':'wanderer',px,py,69,86);g.globalAlpha=1;
- const aimA=aimAngle(),q=isoPoint(px+Math.cos(aimA)*63,py+Math.sin(aimA)*63);const da=Math.atan2(q.y-p.y,q.x-p.x);const weapon=run.weapons[run.slot];g.save();g.translate(p.x,p.y-53);g.rotate(da);
- if(weapon==='sword'){g.strokeStyle='#d6bb79';g.lineWidth=7;g.beginPath();g.moveTo(22,0);g.lineTo(74,0);g.stroke();g.strokeStyle='#b0e7ec';g.lineWidth=4;g.beginPath();g.moveTo(38,-2);g.lineTo(75,-2);g.stroke();g.strokeStyle='#f4d29f';g.lineWidth=6;g.beginPath();g.moveTo(31,-10);g.lineTo(31,10);g.stroke();}
- else if(weapon==='hammer'){g.strokeStyle='#b18a60';g.lineWidth=9;g.beginPath();g.moveTo(15,0);g.lineTo(66,0);g.stroke();g.fillStyle='#c8a789';g.fillRect(57,-19,25,38);}
- else{g.strokeStyle=weapon==='staff'?'#aa87ce':'#b9bbc4';g.lineWidth=8;g.beginPath();g.moveTo(23,0);g.lineTo(64,0);g.stroke();g.fillStyle=weapon==='staff'?'#91e4f2':'#e2c48b';g.fillRect(56,-6,17,12);}
+ const aimA=aimAngle(),q=isoPoint(px+Math.cos(aimA)*63,py+Math.sin(aimA)*63);const da=Math.atan2(q.y-p.y,q.x-p.x);const weapon=run.weapons[run.slot];g.save();g.translate(p.x+7,p.y-43);g.rotate(da);
+ if(weapon==='sword'){g.strokeStyle='#d6bb79';g.lineWidth=7;g.beginPath();g.moveTo(12,0);g.lineTo(49,0);g.stroke();g.strokeStyle='#b0e7ec';g.lineWidth=4;g.beginPath();g.moveTo(23,-2);g.lineTo(51,-2);g.stroke();g.strokeStyle='#f4d29f';g.lineWidth=6;g.beginPath();g.moveTo(19,-8);g.lineTo(19,8);g.stroke();}
+ else if(weapon==='hammer'){g.strokeStyle='#b18a60';g.lineWidth=9;g.beginPath();g.moveTo(9,0);g.lineTo(50,0);g.stroke();g.fillStyle='#c8a789';g.fillRect(43,-13,20,26);}
+ else{g.strokeStyle=weapon==='staff'?'#aa87ce':'#b9bbc4';g.lineWidth=8;g.beginPath();g.moveTo(12,0);g.lineTo(49,0);g.stroke();g.fillStyle=weapon==='staff'?'#91e4f2':'#e2c48b';g.fillRect(46,-4,12,8);}
  if(chargeStarted){g.strokeStyle='#f6d08d';g.lineWidth=4;g.beginPath();g.arc(0,0,45,-Math.PI/2,-Math.PI/2+Math.PI*2*clamp(charging/1.5,0,1));g.stroke();}g.restore();
  if(dashTime>0)isoGlow(px,py,100,'#9cecff48');
  if(returnCast>0){g.strokeStyle='#cdb1ff';g.lineWidth=4;g.beginPath();g.ellipse(p.x,p.y,45,18,0,0,Math.PI*2);g.stroke();isoText('RETORNO '+returnCast.toFixed(1)+'s',p.x,p.y-111,13,'#d9c1ff');}
