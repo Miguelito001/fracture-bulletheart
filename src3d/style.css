@@ -9,3 +9,6 @@
 #crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:11px;width:11px;border:1px solid #d0d7dccc;border-radius:50%;opacity:.3;pointer-events:none}
 @media(max-width:850px){.hud-top{padding:13px;gap:5px}.stat-block{width:170px;padding:9px}.caption{font-size:8px}.purse{min-width:80px;padding:8px}.purse div{display:none}.room-head{padding:12px 0;min-width:0}.room-head #roomname{font-size:17px}.room-head .eyebrow{display:none}.hud-bottom{gap:6px;bottom:25px}.hud-bottom button{height:57px;padding:6px;font-size:10px;min-width:52px}.weapon-group button{min-width:72px}.hud-bottom span{font-size:9px}#controls{font-size:8px}.panel{padding:28px 20px}}
 @media(max-width:540px){.hud-top{align-items:start}.room-head #roomname{font-size:14px}.weapon-group button:nth-child(2){display:none}.hud-bottom .ability-group button{min-width:53px}.stat-block{max-width:130px}.caption span:nth-child(2){display:none}.hud-bottom{width:100%;padding:0 6px;justify-content:center}}
+/* Equipped weapon is always visible in the HUD, matching the model in hand. */
+.weapon-group button.equipped{border-color:#f2c47c;background:linear-gradient(160deg,#374e63,#182a43);box-shadow:0 0 0 1px #dcb26a80,0 2px 22px #cf9f5d50;}
+.weapon-group button[aria-pressed="true"] kbd{color:#fff1d0}
