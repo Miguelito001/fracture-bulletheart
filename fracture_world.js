@@ -205,16 +205,23 @@ function shrub(x,y,seed){
   }
 }
 function looseProp(x,y,seed,variant=0){
-  if(cull(x,y,150))return;
-  const p=pos(x,y),t=theme();
-  disc(p.x,p.y+3,34,13,"#091a2685");
-  const k=seed%6;
-  if(k===0){cc0("14",x,y,.60);rect(p.x-23,p.y-44,46,6,"#dbc28d");}
-  else if(k===1){cc0("09",x,y,.56);stroke([{x:p.x-15,y:p.y-28},{x:p.x+15,y:p.y-28}],t.metal,2);}
-  else if(k===2){shrub(x,y,seed);}
-  else if(k===3){cc0(variant===7?"19":"15",x,y,.64);}
-  else if(k===4){torch(x,y);}
-  else {cc0("12",x,y,.58);disc(p.x,p.y-49,5,5,"#d7c6a5");}
+  // Non-solid details are deliberately flat: broken flagstones and moss,
+  // never fake crates or pillars that the player can walk through.
+  if(cull(x,y,130))return;
+  const p=pos(x,y),t=theme(),h=seed%4;
+  if(h===0){
+    stroke([{x:p.x-18,y:p.y},{x:p.x-6,y:p.y-6},{x:p.x+8,y:p.y+2},{x:p.x+18,y:p.y-1}],t.mortar+"b0",1.5);
+  }else if(h===1){
+    for(let i=0;i<4;i++){
+      const dx=Math.sin(seed+i*3)*14,dy=Math.cos(seed+i*5)*6;
+      disc(p.x+dx,p.y+dy,3,2,t.plant+"aa");
+    }
+  }else if(h===2){
+    disc(p.x,p.y,12,5,"#b2a18625");
+    stroke([{x:p.x-5,y:p.y+3},{x:p.x+7,y:p.y-2}],t.metal+"55",1);
+  }else{
+    disc(p.x,p.y,4,2,variant===7?"#b36f9a90":"#c5a8748c");
+  }
 }
 const originalStation=isoStation;
 function station(id,x,y){
@@ -323,7 +330,8 @@ function dungeonDecor(r){
     }
     if(seed%4===0)looseProp(x+130,y+192,seed>>>5);
   }
-  originalDecor(r);
+  // Interaction logic is in the simulation. Never draw duplicate, non-solid
+  // legacy furniture atop physical props from sceneProps.
 }
 isoDungeonDecor=dungeonDecor;
 // Maintain the original hitboxes. Extra animation changes drawings, never combat timing.
