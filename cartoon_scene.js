@@ -108,13 +108,15 @@
     const palette={wanderer:["#315f97","#204578","#b94353","#ecd3a5"],bulwark:["#94754c","#665238","#ce9d50","#e7c49b"],arcanist:["#7253a6","#473478","#6ad4ec","#efcfae"],npc:["#746344","#51442e","#b9a37d","#e8c6a1"]}[kind]||["#315f97","#204578","#b94353","#ecd3a5"];
     const [cloth,shade,trim,skin]=palette;
     g.save();g.translate(cx,cy);g.scale(s*facing,s);g.lineJoin="round";
-    /* boots and legs */
-    rounded(-16,-20,12,18,3,"#2d2537","#14192a");
-    rounded(6,-20,12,18,3,"#2d2537","#14192a");
-    rounded(-20,-8,17,9,3,"#45372e","#161a28");
-    rounded(4,-8,18,9,3,"#45372e","#161a28");
+    /* Animated boots. Stride comes from actual movement, not a looping idle. */
+    const motion=kind==="npc"?null:window.__fractureMotion;
+    const stride=motion?.stride||0,gait=Math.sin(motion?.phase||0)*stride;
+    rounded(-16+gait*5,-20+Math.max(0,-gait)*5,12,18,3,"#2d2537","#14192a");
+    rounded(6-gait*5,-20+Math.max(0,gait)*5,12,18,3,"#2d2537","#14192a");
+    rounded(-20+gait*5,-8+Math.max(0,-gait)*5,17,9,3,"#45372e","#161a28");
+    rounded(4-gait*5,-8+Math.max(0,gait)*5,18,9,3,"#45372e","#161a28");
     /* cloak fans away with walking movement */
-    const sway=Math.sin(globalTime*8+cx*.01)*3;
+    const sway=Math.sin(globalTime*8+cx*.01)*1.8+gait*3;
     poly([[-20,-65],[18,-65],[24+sway,-18],[0,-11],[-23,-20]],shade,"#1b2132",2.5);
     poly([[-15,-60],[12,-60],[17,-30],[-16,-29]],cloth,"#24374f",2);
     rounded(-21,-59,12,28,5,cloth,"#27374d");
