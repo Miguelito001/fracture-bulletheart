@@ -67,3 +67,18 @@ Pinned public repository mirror: https://github.com/GeorgeQLe/assets-2d-isometri
 ## Kenney Dungeon Pack (2.3) — animated isometric character art
 
 **Author:** Kenney · **License:** CC0-1.0 · **Files:** 48 registered idle and running PNG frames for 8 directions. Source: https://github.com/ETdoFresh/kenney.nl at commit `45df48c4d45f8716216b1a9e22df0b69cd9f5932`, directory `kenneyDungeonPack_2.3/Characters/Male`. Original pack `License.txt` confirms CC0 and explicitly permits commercial modification and redistribution. Manifest with source URLs and SHA-256: `assets/kenney/characters/manifest.json`. Credit given voluntarily.
+
+
+## Kenney — Isometric Blocks (29 CC0 sprites)
+
+- Author: Kenney (https://kenney.nl)
+- Original pack: https://kenney-assets.itch.io/isometric-blocks
+- License: Creative Commons Zero v1.0 Universal (CC0-1.0)
+- Public mirror: https://github.com/GeorgeQLe/assets-2d-isometric
+- Reproducible mirror commit: `0d66f7aebf6faf651ab680c9b83b2d8a40e666a1`
+- Paths: `assets/voxel/voxelTile_*.png`
+- Bundling script: `tools/import_voxel_cc0.py`
+
+These are the actual cartoon voxel environment sprites used by the optional Cartoon V3 art pass.
+The player/creature drawings in `cartoon_scene.js` are FRACTURE-specific original Canvas drawings.
+No Minecraft Dungeons artwork, models or extracted assets are included.
