@@ -215,9 +215,11 @@ class Fracture {
   const root=this.meshModel('kay-knight',x,z,2.72,{group:this.actorGroup});this.hero=root;
   this.heroPivot=new THREE.Group();this.actorGroup.add(this.heroPivot);this.actorGroup.remove(root);this.heroPivot.add(root);root.position.x=0;root.position.z=0;
   this.heroPivot.position.set(x,0,z);
+  // Centre camera instantly after world transitions, avoiding an offscreen spawn.
+  this.cameraTarget.set(x,.8,z);this.camera.position.copy(this.cameraTarget).add(new THREE.Vector3(14,18.4,16));this.camera.lookAt(this.cameraTarget);
   const setup=this.configureAnimations(root,'kay-knight');this.heroMixer=setup.mixer;this.heroAnimations=setup.actions;this.heroAnimationState='idle';
   const hand=(()=>{let bone=null;root.traverse(o=>{if(/handslot[._]?r|hand[._]?r/i.test(o.name))bone ||= o;});return bone;})();
-  this.heroSword=hand?this.meshModel('weapon-sword',0,0,.72,{group:hand}):null;
+  this.heroSword=hand?this.meshModel('weapon-sword',0,0,.27,{group:hand}):null;
   if(this.heroSword){this.heroSword.position.set(.12,.05,0);this.heroSword.rotation.set(Math.PI/2,0,0);}
  }
  openHub(){
