@@ -265,28 +265,19 @@ function station(id,x,y){
 isoStation=station;
 const originalDecor=isoDungeonDecor;
 function visibleCombatGate(r,next){
-  const horizontal=Math.abs(next.cx-r.cx)>Math.abs(next.cy-r.cy);
-  const anchorX=horizontal?r.cx+Math.sign(next.cx-r.cx)*T*6.25:r.cx;
-  const anchorY=horizontal?r.cy:r.cy+Math.sign(next.cy-r.cy)*T*4.25;
-  const length=T*2.15;
-  const ax=horizontal?anchorX:anchorX-length;
-  const ay=horizontal?anchorY-length:anchorY;
-  const bx=horizontal?anchorX:anchorX+length;
-  const by=horizontal?anchorY+length:anchorY;
-  const a=pos(ax,ay),b=pos(bx,by),ar={x:a.x,y:a.y-68},br={x:b.x,y:b.y-68};
-  g.save();
-  g.globalCompositeOperation="screen";
-  g.shadowColor="#f65f7e";g.shadowBlur=25;
-  poly([a,b,br,ar],"#dc365a33","#ffa9b8",2.4);
-  for(let i=0;i<9;i++){
-    const t=i/8,xx=a.x+(b.x-a.x)*t,yy=a.y+(b.y-a.y)*t;
-    const pulse=.6+.4*Math.sin(globalTime*7+i*.9);
-    stroke([{x:xx,y:yy},{x:xx,y:yy-68*pulse}],"#ffa4bba8",2.4);
-    disc(xx,yy-68*pulse,2.6,2.6,"#ffe5ca");
-  }
-  stroke([ar,br],"#fbd2d6",3);
-  stroke([a,b],"#e76483",4);
-  g.restore();
+ const door=roomDoorGate(r,next),a=pos(door.a.x,door.a.y),b=pos(door.b.x,door.b.y);
+ const topA={x:a.x,y:a.y-66},topB={x:b.x,y:b.y-66};
+ g.save();g.globalCompositeOperation="screen";
+ g.shadowColor="#d14f77";g.shadowBlur=13;
+ poly([a,b,topB,topA],"#cd366035","#ff8fa2",2);
+ for(let i=0;i<=6;i++){
+  const t=i/6,x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t;
+  stroke([{x,y},{x,y:y-64}],"#f4a6b3b0",2.1);
+  disc(x,y-63,2.8,2.8,"#ffe8da");
+ }
+ stroke([topA,topB],"#f7b2b9",2.7);
+ stroke([a,b],"#b76586",2.9);
+ g.restore();
 }
 
 function dungeonDecor(r){
