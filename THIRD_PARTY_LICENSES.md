@@ -62,3 +62,8 @@ The feature/isometric-v2 art pass bundles 48 actual PNG images for floors, walls
 Original sources: https://kenney.nl/assets/isometric-miniature-dungeon and https://kenney.nl/assets/isometric-miniature-library
 
 Pinned public repository mirror: https://github.com/GeorgeQLe/assets-2d-isometric, commit 0d66f7aebf6faf651ab680c9b83b2d8a40e666a1. The packaged assets/kenney/manifest.json identifies individual original URLs and SHA-256 values. The imported PNG files are resized, not AI-synthesized, and are hosted with the game; no runtime third-party host is required.
+
+
+## Kenney Dungeon Pack (2.3) — animated isometric character art
+
+**Author:** Kenney · **License:** CC0-1.0 · **Files:** 48 registered idle and running PNG frames for 8 directions. Source: https://github.com/ETdoFresh/kenney.nl at commit `45df48c4d45f8716216b1a9e22df0b69cd9f5932`, directory `kenneyDungeonPack_2.3/Characters/Male`. Original pack `License.txt` confirms CC0 and explicitly permits commercial modification and redistribution. Manifest with source URLs and SHA-256: `assets/kenney/characters/manifest.json`. Credit given voluntarily.
