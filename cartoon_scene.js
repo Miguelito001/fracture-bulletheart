@@ -25,7 +25,7 @@
     return false;
   }
   function groundColor(f,h) {
-    if(hubActive) return (h%97===0?"13":h%31===0?"11":h%7===0?"12":"20");
+    if(hubActive) return h%103===0?"13":h%23===0?"12":h%13===0?"11":"09";
     const region=(run?.floor||1)%5;
     if(region===2)return h%19===0?"12":h%11===0?"11":"09";
     if(region===3)return h%17===0?"13":h%7===0?"11":"09";
@@ -38,6 +38,33 @@
     if(p.x < -160||p.x > W+160||p.y < -180||p.y > H+180)return false;
     const id=groundColor(run?.floor||1,h);
     voxel(id,x,y,1,0,1);
+    /* Inlaid paths turn the base into a navigable place instead of a menu room. */
+    if(hubActive){
+      const u=x-HUB.x,v=y-HUB.y;
+      const trunk=Math.abs(u)<T*.69&&Math.abs(v)<T*5;
+      const cross=Math.abs(v)<T*.72&&Math.abs(u)<T*6;
+      if(trunk||cross){
+        isoDiamond(x,y,42,21,"#33445fba","#ba9a6f9c");
+        if(h%6===0){const q=isoPoint(x,y);g.strokeStyle="#d8b97e85";g.lineWidth=1.2;
+          g.beginPath();g.moveTo(q.x-9,q.y+1);g.lineTo(q.x,q.y-3);g.lineTo(q.x+9,q.y+1);g.stroke();}
+      }
+    }
+    /* Hand-placed marks, darker grout, moss and golden motes per cell.
+       Sparse deterministic details: no photo textures or repeating overlays. */
+    if(h%3===0){
+      g.save();g.strokeStyle=hubActive?"#e2b77745":"#27445499";g.lineWidth=1;
+      const ox=((h>>>3)%25)-12,oy=((h>>>7)%12)-6;
+      g.beginPath();g.moveTo(p.x+ox-12,p.y+oy-1);g.lineTo(p.x+ox-3,p.y+oy+3);
+      g.lineTo(p.x+ox+4,p.y+oy-1);g.stroke();g.restore();
+    }
+    if(h%29===0){
+      const q=isoPoint(x-13,y+9);g.strokeStyle=hubActive?"#5fb89a":"#456c80";g.lineWidth=2;
+      g.beginPath();g.moveTo(q.x,q.y);g.lineTo(q.x-5,q.y-10);g.moveTo(q.x,q.y);g.lineTo(q.x+6,q.y-8);g.stroke();
+    }
+    if(h%43===0){
+      const q=isoPoint(x+8,y-4);g.save();g.shadowColor="#fbbd5a";g.shadowBlur=13;
+      ell(q.x,q.y-2,2.6,2.6,"#f3c67b");g.restore();
+    }
     /* Shared open-source block shape prevents photographic texture seams. */
     if(h%17===0){const u=isoPoint(x-9,y-12);
       g.save();g.strokeStyle=hubActive?"#e6bc7947":"#a4ccda43";g.lineWidth=1.3;
@@ -54,6 +81,11 @@
     if(key%7===0)voxel(hubActive?"15":"11",x,y,.77,137,op);
     if(key%19===0)voxel("14",x,y,.5,192,op);
     if(key%13===0)isoTorch(x,y);
+    if(key%11===0){const p=isoPoint(x,y),c=hubActive?"#b56b62":"#805368";
+      poly([[p.x-26,p.y-136],[p.x+27,p.y-135],[p.x+21,p.y-82],[p.x,p.y-70],[p.x-23,p.y-84]],c,"#503848",2);
+      const q=p;g.fillStyle="#dcb96e";g.beginPath();g.arc(q.x,q.y-110,6,0,Math.PI*2);g.fill();}
+    if(key%23===0){voxel("14",x,y,.43,72,op);}
+
   };
   /* A coherent art style: oversized expressive faces, strong dark silhouettes,
      saturated cloaks, readable enemy taxonomy and a true ground contact shadow. */
@@ -172,6 +204,16 @@
     const focus=distance({x:px,y:py},{x,y});
     if(focus<165)isoText("[ E ] ATRAVESSAR A FRATURA",p.x,p.y-208,15,"#d0f4ff");
   }
+  function floorDecor(x,y,kind) {
+    const p=isoPoint(x,y);
+    if(kind==="moss"){
+      g.strokeStyle="#539788";g.lineWidth=3;
+      for(let i=0;i<5;i++){const dx=Math.sin(i*9+x)*15,dy=Math.cos(i*11+y)*8;
+        g.beginPath();g.moveTo(p.x+dx,p.y+dy);g.lineTo(p.x+dx+4,p.y+dy-11);g.stroke();}
+    }else if(kind==="crystals"){
+      for(let i=0;i<3;i++)isoGem(x+i*17-18,y+Math.sin(i*3)*18,["#6bd9f1","#8bdceb","#9d8fff"][i],18+i*7);
+    }
+  }
   function toonForge(x,y) {
     voxel("14",x-93,y+22,.75,1);voxel("15",x+82,y+12,.76,0);
     const p=isoPoint(x,y);
@@ -181,6 +223,7 @@
     g.save();g.shadowBlur=28;g.shadowColor="#ff8c28";
     ell(p.x-24,p.y-64,25,35,"#ff853b");ell(p.x-24,p.y-63,11,25,"#fff0a1");g.restore();
     isoGlow(x-50,y-28,175,"#ff7d3044");
+    floorDecor(x-115,y+125,"moss");
     /* anvil */
     voxel("09",x+30,y+75,.6,4);
     poly([[p.x+25,p.y-44],[p.x+88,p.y-44],[p.x+77,p.y-32],[p.x+15,p.y-32]],"#9cc2cb","#24354b",3);
@@ -196,6 +239,7 @@
     rounded(p.x-68,p.y-34,148,36,7,"#95603d","#442f37");
     for(let i=0;i<6;i++)ell(p.x-48+i*21,p.y-35-((i*7)%15),7,6,i%2?"#e4c16e":"#72d4be");
     toonHero(p.x+5,p.y-34,.66,"npc",1);
+    floorDecor(x+120,y+78,"moss");
     isoText("MERCADOR",p.x,p.y-155,14,"#ffddb4");
   }
   function toonArchive(x,y) {
@@ -210,6 +254,7 @@
       }
     }
     isoGem(x+70,y-35,"#9bbdff",86);
+    floorDecor(x-85,y+100,"crystals");
     isoText("ARQUIVO",p.x,p.y-166,14,"#d6cdff");
   }
   function toonVault(x,y) {
@@ -219,6 +264,7 @@
     rounded(p.x-40,p.y-112,80,73,9,"#233646","#a9b5be");
     ell(p.x,p.y-78,17,18,"#d9b26a");ell(p.x,p.y-78,9,10,"#485765");
     voxel("14",x-65,y+82,.6,0);voxel("14",x+65,y+82,.6,0);
+    floorDecor(x+110,y+100,"moss");
     isoText("COFRE",p.x,p.y-157,14,"#b8f7dc");
   }
   function toonAltar(x,y) {
@@ -251,6 +297,8 @@
       const n=hash(r.gx,r.gy);
       if(n%2===0){voxel("14",r.cx+170,r.cy-100,.74,0);voxel("14",r.cx+230,r.cy-90,.59,0);}
       if(n%3===0)isoTorch(r.cx-212,r.cy-128);
+      if(n%5===0)floorDecor(r.cx-142,r.cy+99,"crystals");
+      if(n%7===0)floorDecor(r.cx+82,r.cy+123,"moss");
     }
     if(r.active){const n=r.connections||[];for(const id of n){const next=rooms[id],a=Math.atan2(next.cy-r.cy,next.cx-r.cx),v=vec(a,T*7.3),q=isoPoint(r.cx+v.x,r.cy+v.y);
       g.strokeStyle="#ee737f";g.lineWidth=7;g.beginPath();g.moveTo(q.x-12,q.y-6);g.lineTo(q.x+12,q.y+6);g.stroke();}}
