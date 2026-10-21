@@ -1,4 +1,4 @@
-name: FRACTURE Open Asset Integration
+name: FRACTURE Kenney CC0 + Browser QA
 on:
   push:
     branches: [feature/isometric-v2]
