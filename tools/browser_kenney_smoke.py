@@ -65,7 +65,32 @@ try:
    assert result['mode'] in ('choice','archive') and len(result['text'])>90,(station,result)
    page.evaluate("() => closeHubModal()")
   print('HUB STATIONS AND PHYSICAL COLLISION OK:',solid,flush=True)
-  page.evaluate("() => {px=hubStations[0].x;py=hubStations[0].y+60;}")
+  # Drive through an actual solid prop to verify movement stops at its body.
+  hit=page.evaluate("""() => {
+    const p=sceneProps.find(v=>v.kind==='pillar'&&Math.abs(v.x-HUB.x)<310&&Math.abs(v.y-HUB.y)<180);
+    if(!p)return null;
+    return {x:p.x,y:p.y};
+  }""")
+  assert hit,'No physical column in hub'
+  page.evaluate("(p)=>{px=p.x-96;py=p.y;keys.clear();}",hit)
+  page.keyboard.down('s')
+  page.keyboard.down('d')
+  page.wait_for_timeout(750)
+  page.keyboard.up('s')
+  page.keyboard.up('d')
+  barrier=page.evaluate("(p)=>({px,py,solid:walkable(p.x,p.y,15),distance:Math.hypot(px-p.x,py-p.y)});",hit)
+  assert not barrier['solid'] and barrier['px']<hit['x'] and barrier['distance']>18,('Passed through visible pillar',hit,barrier)
+  print('REAL KEYBOARD PILLAR COLLISION OK:',barrier,flush=True)
+  # True keyboard traversal: go north from the safe nave to the physical portal.
+  page.evaluate("() => {px=HUB.x;py=HUB.y;keys.clear();}")
+  page.keyboard.down('w')
+  page.keyboard.down('d')
+  page.wait_for_timeout(1900)
+  page.keyboard.up('w')
+  page.keyboard.up('d')
+  walk=page.evaluate("() => ({x:px,y:py,dist:distance({x:px,y:py},hubStations[0]),walkable:walkable(px,py,15)})")
+  assert walk['dist']<145 and walk['walkable'],('Keyboard traversal to portal failed',walk)
+  print('REAL KEYBOARD PORTAL WALK OK:',walk,flush=True)
   page.keyboard.press('e')
   page.wait_for_timeout(600)
   run=page.evaluate("() => ({hub:hubActive,mode,rooms:rooms.length,floor:run.floor})")
