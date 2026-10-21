@@ -14,3 +14,5 @@ The `fracture_bulletheart_v1` save is **read**, not overwritten. This vertical s
 - KayKit Adventurers 1.0 (Knight, Hooded Rogue), CC0: https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 at `672074b73ba276876a19e8816ecdc5241817ab47`.
 - KayKit Skeletons 1.0 (Skeleton Warrior), CC0: https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0 at `15b62b9bad122f72926c10fb14d622c73819fa54`.
 These public fully rigged GLBs contain real authored clips activated by Three.js AnimationMixer.
+
+- KayKit Dungeon Remastered 1.0 (14 3D floor, wall, column, furniture, torch, banner and doorway models), CC0 1.0: https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0 pinned to `b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07`. Original modular geometry is scaled and reused with physical Rapier colliders.

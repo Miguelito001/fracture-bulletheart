@@ -21,7 +21,21 @@ const sourced = [...MODELS.map(name=>({file:name,model:name,pack:'mini-dungeon'}
  ...OTHER.castle.map(name=>({file:`castle-${name}`,model:name,pack:'castle-kit'})),
  {file:'kay-knight',repo:'KayKit-Character-Pack-Adventures-1.0',commit:'672074b73ba276876a19e8816ecdc5241817ab47',folder:'addons/kaykit_character_pack_adventures/Characters/gltf',model:'Knight'},
  {file:'kay-rogue',repo:'KayKit-Character-Pack-Adventures-1.0',commit:'672074b73ba276876a19e8816ecdc5241817ab47',folder:'addons/kaykit_character_pack_adventures/Characters/gltf',model:'Rogue_Hooded'},
- {file:'kay-skeleton',repo:'KayKit-Character-Pack-Skeletons-1.0',commit:'15b62b9bad122f72926c10fb14d622c73819fa54',folder:'addons/kaykit_character_pack_skeletons/Characters/gltf',model:'Skeleton_Warrior'}
+ {file:'kay-skeleton',repo:'KayKit-Character-Pack-Skeletons-1.0',commit:'15b62b9bad122f72926c10fb14d622c73819fa54',folder:'addons/kaykit_character_pack_skeletons/Characters/gltf',model:'Skeleton_Warrior'},
+ {file:'kd-floor',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'floor_tile_large.gltf'},
+ {file:'kd-floor-broken',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'floor_tile_small_broken_A.gltf'},
+ {file:'kd-floor-decor',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'floor_tile_small_decorated.gltf'},
+ {file:'kd-wall',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'wall.gltf'},
+ {file:'kd-wall-broken',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'wall_broken.gltf'},
+ {file:'kd-wall-cracked',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'wall_cracked.gltf'},
+ {file:'kd-pillar',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'pillar_decorated.gltf'},
+ {file:'kd-crates',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'crates_stacked.gltf'},
+ {file:'kd-barrel',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'barrel_large_decorated.gltf'},
+ {file:'kd-torch',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'torch_mounted.gltf'},
+ {file:'kd-banner',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'banner_patternA_red.gltf'},
+ {file:'kd-chest',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'chest_gold'},
+ {file:'kd-table',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'table_medium_decorated_A.gltf'},
+ {file:'kd-arch',repo:'KayKit-Dungeon-Remastered-1.0',commit:'b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07',folder:'addons/kaykit_dungeon_remastered/Assets/gltf',model:'wall_arched.gltf'}
 ];
 await mkdir(output,{recursive:true});
 for (const {file:name,model,pack,repo,commit,folder} of sourced) {

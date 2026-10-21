@@ -32,7 +32,8 @@ const MODELS=['banner','barrel','chair','character-human','character-orc','chest
  'grave-gravestone-round','grave-lightpost-single','grave-urn-round',
  'grave-debris','grave-stone-wall-damaged','grave-pillar-square','grave-detail-chalice',
  'castle-flag-banner-long','castle-wall-pillar','castle-metal-gate','castle-rocks-small',
- 'kay-knight','kay-rogue','kay-skeleton'];
+ 'kay-knight','kay-rogue','kay-skeleton',
+ 'kd-floor','kd-floor-broken','kd-floor-decor','kd-wall','kd-wall-broken','kd-wall-cracked','kd-pillar','kd-crates','kd-barrel','kd-torch','kd-banner','kd-chest','kd-table','kd-arch'];
 const KEY_TO_SAVE='fracture_bulletheart_3d_v1';
 function loadProgress(){
  try { const state=JSON.parse(localStorage.getItem(SAVE_KEY));if(state&&typeof state==='object')return {...DEFAULT,...state,inventory:{...DEFAULT.inventory,...state.inventory}}; }catch{}
@@ -129,7 +130,7 @@ class Fracture {
   bbox=new THREE.Box3().setFromObject(clone);size=bbox.getSize(new THREE.Vector3());
   const center=bbox.getCenter(new THREE.Vector3());
   clone.position.x=x-center.x;clone.position.y=height-bbox.min.y;clone.position.z=z-center.z;
-  clone.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});if(name.startsWith('wall')||name.includes('crypt-door')||name.includes('metal-gate')){clone.userData.isWall=true;clone.userData.baseX=x;clone.userData.baseZ=z;}group.add(clone);
+  clone.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});if(name.startsWith('wall')||name.startsWith('kd-wall')||name.includes('crypt-door')||name.includes('metal-gate')){clone.userData.isWall=true;clone.userData.baseX=x;clone.userData.baseZ=z;}group.add(clone);
   if(physical){this.solid(x,Math.max(.2,clone.position.y+size.y/2),z,Math.max(.22,size.x/2*colliderScale),Math.max(.40,size.y/2),Math.max(.22,size.z/2*colliderScale));}
   return clone;
  }
@@ -157,30 +158,32 @@ class Fracture {
     if(ch!=='#'){
      roomFloor++;
      // Kenney's real stone GLB floors, not a painted Canvas diamond.
-     const tile=this.meshModel(ch==='A'||ch==='B'||ch==='P'?'floor-detail':'floor',wx,wz,TILE*1.01);
+     const floorName=(x+z+index)%17===0?'kd-floor-broken':(x*3+z*7+index)%12===0?'kd-floor-decor':'kd-floor';
+     const tile=this.meshModel(floorName,wx,wz,TILE*1.02);
      if(tile){tile.traverse(o=>{if(o.isMesh)o.receiveShadow=true;});}
      this.solid(wx,-.58,wz,TILE*.51,.49,TILE*.51);
      if((x+z)%3!==0){writeSeam(wx,wz+TILE*.48,false);writeSeam(wx+TILE*.48,wz,true);}
      if((x*11+z*7+index)%17===0){this.meshModel('stones',wx+.28,wz-.38,TILE*.31,{height:.05});}
-     if(ch==='b'){this.meshModel(['ossuary','crypt'].includes(layout.theme)?'grave-coffin':'barrel',wx,wz,TILE*.77,{physical:true,colliderScale:.96});}
-     if(ch==='c'){this.meshModel(['boss','chapel','ossuary'].includes(layout.theme)?'grave-column-large':'column',wx,wz,TILE*.79,{physical:true,colliderScale:.92});}
-     if(ch==='t'){this.meshModel(layout.theme==='chapel'?'grave-altar-stone':'table',wx,wz,TILE*.85,{physical:true,colliderScale:.95});}
-     if(ch==='f'){this.meshModel('table',wx,wz,TILE*.96,{physical:true});this.addLight(wx,wz,0xffaa61,5);}
-     if(ch==='m'){this.meshModel('table',wx,wz,TILE*1.05,{physical:true});}
+     if(ch==='b'){this.meshModel(layout.theme==='treasure'?'kd-chest':layout.theme==='ossuary'?'grave-coffin':'kd-barrel',wx,wz,TILE*.77,{physical:true,colliderScale:.96});}
+     if(ch==='c'){this.meshModel('kd-pillar',wx,wz,TILE*.79,{physical:true,colliderScale:.92});}
+     if(ch==='t'){this.meshModel(layout.theme==='chapel'?'grave-altar-stone':'kd-table',wx,wz,TILE*.85,{physical:true,colliderScale:.95});}
+     if(ch==='f'){this.meshModel('kd-table',wx,wz,TILE*.96,{physical:true});this.addLight(wx,wz,0xffaa61,5);}
+     if(ch==='m'){this.meshModel('kd-table',wx,wz,TILE*1.05,{physical:true});}
      if(ch==='a'){this.meshModel('grave-altar-stone',wx,wz,TILE*1.05,{physical:true});this.addLight(wx,wz,0xae84ea,4);}
      if(ch==='s'){this.meshModel('grave-altar-stone',wx,wz,TILE*.9,{physical:true});this.addLight(wx,wz,0xf5ce8e,3.2);}
      if(ch==='P'){this.meshModel('grave-crypt-door',wx,wz,TILE*1.26,{height:0});this.addLight(wx,wz,theme.glow,7);}
      if(ch==='B'){this.meshModel('castle-metal-gate',wx,wz,TILE*1.44,{height:0});this.addLight(wx,wz,theme.glow,7);}
-     if(ch==='A'){this.addLight(wx,wz,theme.glow,4.2);this.meshModel('grave-fire-basket',wx+.5,wz-1.0,TILE*.43,{height:0});}
+     if(ch==='A'){this.addLight(wx,wz,theme.glow,4.2);this.meshModel('kd-torch',wx+.5,wz-1.0,TILE*.43,{height:1.3});}
     }else{
      // Existing 3D wall models and matching Rapier wall colliders.
-     const wall=this.meshModel(['boss','ossuary','chapel'].includes(layout.theme)?'grave-stone-wall-damaged':(z<=2||z>=10)?'wall':'wall-half',wx,wz,TILE*1.05,{physical:true,colliderScale:.99});
+     const wallType=(x*3+z*7+index)%13===0?'kd-wall-cracked':(x*7+z*5+index)%23===0?'kd-wall-broken':'kd-wall';
+     const wall=this.meshModel(wallType,wx,wz,TILE*1.05,{physical:true,colliderScale:.99});
     }
    }
    if(roomFloor<110)throw Error('A sala '+layout.id+' é pequena demais');
    // Wall-mounted architecture: torches, banners, stone sculptures (CC0).
    for(const [x,z,name] of [[2,1,'banner'],[WIDTH-3,1,'banner'],[3,HEIGHT-2,'rocks'],[WIDTH-4,HEIGHT-2,'rocks']]){
-    if(layout.rows[z][x]==='#')this.meshModel(name==='banner'?'castle-flag-banner-long':'grave-debris',ox+x*TILE,z*TILE,TILE*.57,{height:name==='banner'?1.2:0});
+    if(layout.rows[z][x]==='#')this.meshModel(name==='banner'?'kd-banner':'grave-debris',ox+x*TILE,z*TILE,TILE*.57,{height:name==='banner'?1.2:0});
    }
    if(index%2===0)this.addLight(ox+3*TILE,3*TILE,theme.glow,3.5);
    this.addLight(ox+(WIDTH-4)*TILE,9*TILE,theme.glow,2.8);
