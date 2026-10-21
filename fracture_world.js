@@ -269,6 +269,31 @@ function station(id,x,y){
 }
 isoStation=station;
 const originalDecor=isoDungeonDecor;
+function visibleCombatGate(r,next){
+  const horizontal=Math.abs(next.cx-r.cx)>Math.abs(next.cy-r.cy);
+  const anchorX=horizontal?r.cx+Math.sign(next.cx-r.cx)*T*6.25:r.cx;
+  const anchorY=horizontal?r.cy:r.cy+Math.sign(next.cy-r.cy)*T*4.25;
+  const length=T*2.15;
+  const ax=horizontal?anchorX:anchorX-length;
+  const ay=horizontal?anchorY-length:anchorY;
+  const bx=horizontal?anchorX:anchorX+length;
+  const by=horizontal?anchorY+length:anchorY;
+  const a=pos(ax,ay),b=pos(bx,by),ar={x:a.x,y:a.y-68},br={x:b.x,y:b.y-68};
+  g.save();
+  g.globalCompositeOperation="screen";
+  g.shadowColor="#f65f7e";g.shadowBlur=25;
+  poly([a,b,br,ar],"#dc365a33","#ffa9b8",2.4);
+  for(let i=0;i<9;i++){
+    const t=i/8,xx=a.x+(b.x-a.x)*t,yy=a.y+(b.y-a.y)*t;
+    const pulse=.6+.4*Math.sin(globalTime*7+i*.9);
+    stroke([{x:xx,y:yy},{x:xx,y:yy-68*pulse}],"#ffa4bba8",2.4);
+    disc(xx,yy-68*pulse,2.6,2.6,"#ffe5ca");
+  }
+  stroke([ar,br],"#fbd2d6",3);
+  stroke([a,b],"#e76483",4);
+  g.restore();
+}
+
 function dungeonDecor(r){
   if(!r.seen||cull(r.cx,r.cy,500))return;
   const t=theme(),x=r.cx,y=r.cy,p=pos(x,y),seed=h32(r.gx,r.gy,run?.floor||1);
@@ -329,6 +354,11 @@ function dungeonDecor(r){
       cc0("09",x-140,y+160,.62);shrub(x+180,y-112,seed);
     }
     if(seed%4===0)looseProp(x+130,y+192,seed>>>5);
+  }
+  if(r.active){
+    for(const id of r.connections){
+      const next=rooms[id];if(next)visibleCombatGate(r,next);
+    }
   }
   // Interaction logic is in the simulation. Never draw duplicate, non-solid
   // legacy furniture atop physical props from sceneProps.
