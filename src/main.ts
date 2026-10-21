@@ -709,7 +709,7 @@ function drawHubStations(){
  }
  g.font='bold 17px Georgia';g.fillStyle='#dfcba6';g.textAlign='center';g.fillText('CÂMARA ÂNCORA',HUB.x,HUB.y-385);g.font='13px sans-serif';g.fillText('FORA DESTAS PAREDES, TUDO SE REFAZ',HUB.x,HUB.y-356);
 }
-function interactHub(){if(mode!=='hub')return;const st=hubStations.find(q=>distance(q,{x:px,y:py})<145);if(!st){showNotice('APROXIME-SE DE UMA ESTRUTURA PARA INTERAGIR',2);return;}if(st.id==='portal'){begin(save.preferredClass||'wanderer');showNotice('UMA NOVA MASMORRA SE FORMOU · RETORNE VIVO COM SEU ESPÓLIO',4);return;}if(st.id==='forge')openForge();if(st.id==='merchant')openMerchant();if(st.id==='vault')openStash();if(st.id==='altar')openAltar();if(st.id==='archive')showArchive();}
+function interactHub(){if(mode!=='hub')return;const st=hubStations.map(q=>({station:q,d:distance(q,{x:px,y:py})})).sort((a,b)=>a.d-b.d).find(v=>v.d<185)?.station;if(!st){showNotice('APROXIME-SE DE UMA ESTRUTURA PARA INTERAGIR',2);return;}if(st.id==='portal'){begin(save.preferredClass||'wanderer');showNotice('UMA NOVA MASMORRA SE FORMOU · RETORNE VIVO COM SEU ESPÓLIO',4);return;}if(st.id==='forge')openForge();if(st.id==='merchant')openMerchant();if(st.id==='vault')openStash();if(st.id==='altar')openAltar();if(st.id==='archive')showArchive();}
 function backHome(){enterHub();}
 function closeHubModal(){el('#overlay').innerHTML='';mode='hub';updateHubLabel();}
 function openBag(fromHub:boolean){const cargo=fromHub?Object.entries(save.stash||{}).filter(([,q])=>q>0).map(([id,qty])=>({id,qty})):run.cargo;
@@ -1003,7 +1003,7 @@ function drawIsoWorld(){
  }
  queue.push({depth:px+py+10,render:isoActorPlayer});
  queue.sort((a,b)=>a.depth-b.depth);for(const item of queue)item.render();
- if(hubActive){for(const s of hubStations){const p=isoPoint(s.x,s.y);if(distance({x:px,y:py},s)<150)isoText(`[ E ] ${s.label}`,p.x,p.y-185,15,'#f2ddb5');}
+ if(hubActive){for(const s of hubStations){const p=isoPoint(s.x,s.y);if(distance({x:px,y:py},s)<185)isoText(`[ E ] ${s.label}`,p.x,p.y-185,15,'#f2ddb5');}
   }
  g.restore();
 }
