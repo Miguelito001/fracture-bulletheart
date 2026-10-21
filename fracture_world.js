@@ -290,16 +290,10 @@ function dungeonDecor(r){
    originalDecor(r); // actual interactable portal
  }else if(r.kind==="boss"){
    paveRug(x,y,197,"#66364e");sigil(x,y,161,"#d869a3");
-   for(let i=0;i<4;i++){
-     const angle=i*TAU/4+PI/4,q=pos(x+Math.cos(angle)*245,y+Math.sin(angle)*245);
-     stoneColumnAt(q.x,q.y,153,t,1.25);
-     banner(q.x,q.y-139,26,62,"#852e5e");
-   }
+   // Boss's physical pillars are provided by its selected prefab, not a decal.
  }else if(r.kind==="elite"){
    paveRug(x,y,135,"#7c5342");sigil(x,y,110,"#d39c68");
-   for(const [dx,dy] of [[-220,-145],[220,145]]){
-     const q=pos(x+dx,y+dy);stoneColumnAt(q.x,q.y,135,t,1.2);
-   }
+   // Elite props are exclusively those listed in the fixed room blueprint.
  }else if(r.kind==="treasure"){
    paveRug(x,y+8,104,"#655137");
    sigil(x,y,65,"#ceba77");
@@ -313,10 +307,8 @@ function dungeonDecor(r){
    if(seed%3===0){sigil(x+86,y-50,42,"#a59165");looseProp(x-189,y+80,seed);}
    else if(seed%3===1){paveRug(x,y,75,"#535469");looseProp(x-160,y+100,seed);}
    else{
-     for(const [dx,dy] of [[-204,-148],[210,143]]){
-       const q=pos(x+dx,y+dy);stoneColumnAt(q.x,q.y,134,t,1.1);
-       banner(q.x+25,q.y-108,20,44,t.cloth);
-     }
+     // Lithic markings without additional, non-collidable freestanding objects.
+     sigil(x-120,y+90,28,"#80687e");
    }
  }
  if(r.active)for(const id of r.connections){
