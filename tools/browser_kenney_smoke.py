@@ -59,7 +59,7 @@ try:
       allConnected,allDoors,allProps,allSpawns};
   }""")
   assert prefab_check['count']==200 and prefab_check['ids']==200,prefab_check
-  assert prefab_check['layouts']>=190 and prefab_check['footprints']>=50,prefab_check
+  assert prefab_check['layouts']==200 and prefab_check['footprints']==200,prefab_check
   assert all(prefab_check[k] for k in ['allConnected','allDoors','allProps','allSpawns']),prefab_check
   print('200 STATIC ROOM BLUEPRINTS VALIDATED:',prefab_check,flush=True)
   page.wait_for_timeout(400)
