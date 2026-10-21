@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import RAPIER from '@dimforge/rapier3d-compat';
 import EasyStar from 'easystarjs';
+import { AudioBus } from './audio.js';
 import { HUB, ROOMS, WIDTH, HEIGHT, TILE, chooseExpedition, validateBlueprint, worldX, worldZ } from './rooms.js';
 
 const $=(id)=>document.getElementById(id);
@@ -61,7 +62,7 @@ class Fracture {
   this.raycaster=new THREE.Raycaster();this.plane=new THREE.Plane(new THREE.Vector3(0,1,0),-.05);
   this.pointer=new THREE.Vector2(0,0);this.aim=new THREE.Vector3(1,0,0);
   this.keys=new Set();this.mode='loading';this.progress=loadProgress();this.hp=100;this.maxHp=100;
-  this.weapon='blade';this.potions=2;this.xp=0;this.level=1;this.materials={iron:0,embers:0};
+  this.weapon='blade';this.audio=new AudioBus();this.lastAttack='blade';this.potions=2;this.xp=0;this.level=1;this.materials={iron:0,embers:0};
   this.rooms=[];this.roomIndex=0;this.enemyUnits=[];this.drops=[];this.gates=[];this.statueActors=[];
   this.elapsed=0;this.hitCooldown=0;this.attackCooldown=0;this.dashCooldown=0;this.dashTime=0;this.invuln=0;
   this.cast=0;this.castOrigin=null;this.isMoving=false;this.killCount=0;this.fx=[];
@@ -69,13 +70,13 @@ class Fracture {
   this.errors=[];this.gameStarted=false;this.testMarker={engine:'Three.js',physics:'Rapier',rendering:'3D',assets:0,roomCount:0};
   this.lightGeometry=new THREE.SphereGeometry(.15,9,8);
   this.renderer.domElement.addEventListener('pointermove',e=>this.movePointer(e));
-  this.renderer.domElement.addEventListener('pointerdown',e=>this.pointerDown(e));
+  this.renderer.domElement.addEventListener('pointerdown',e=>{this.audio.unlock();this.pointerDown(e);});
   this.renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
-  window.addEventListener('keydown',e=>this.keyDown(e));
+  window.addEventListener('keydown',e=>{this.audio.unlock();this.keyDown(e);});
   window.addEventListener('keyup',e=>this.keys.delete(e.code));
   window.addEventListener('blur',()=>this.keys.clear());
   window.addEventListener('resize',()=>this.resize());
-  document.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>this.action(el.dataset.action)));
+  document.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>{this.audio.unlock();this.action(el.dataset.action);}));
   window.addEventListener('pagehide',()=>this.persistRun());
   window.__FRACTURE3D__=this;
  }
@@ -234,8 +235,12 @@ class Fracture {
   this.cameraTarget.set(x,.8,z);this.camera.position.copy(this.cameraTarget).add(this.cameraOffset);this.camera.lookAt(this.cameraTarget);
   const setup=this.configureAnimations(root,'kay-knight');this.heroMixer=setup.mixer;this.heroAnimations=setup.actions;this.heroAnimationState='idle';
   const hand=(()=>{let bone=null;root.traverse(o=>{if(/handslot[._]?r|hand[._]?r/i.test(o.name))bone ||= o;});return bone;})();
-  this.heroSword=hand?this.meshModel('weapon-sword',0,0,.27,{group:hand}):null;
-  if(this.heroSword){this.heroSword.position.set(.12,.05,0);this.heroSword.rotation.set(Math.PI/2,0,0);}
+  this.weaponRig=new THREE.Group();(hand||root).add(this.weaponRig);
+  this.heroSword=this.meshModel('weapon-sword',0,0,.38,{group:this.weaponRig});
+  this.heroGun=this.meshModel('blaster-g',0,0,.48,{group:this.weaponRig});
+  if(this.heroSword){this.heroSword.position.set(.12,.02,0);this.heroSword.rotation.set(Math.PI/2,0,0);}
+  if(this.heroGun){this.heroGun.position.set(.10,-.03,0);this.heroGun.rotation.set(0,Math.PI/2,0);}
+  this.selectWeapon(this.weapon,true);
  }
  openHub(){
   this.clearWorld();this.scene.fog.color.setHex(PALETTE.sanctuary.fog);
@@ -266,15 +271,22 @@ class Fracture {
   if(e.repeat)return;
   if(e.code==='Escape'){if(this.mode==='playing')this.setMode('paused');else if(this.mode==='paused')this.setMode(this.worldType==='hub'?'hub':'playing');}
   if(e.code==='KeyE')this.interact();
-  if(e.code==='Digit1')this.weapon='blade';if(e.code==='Digit2')this.weapon='gun';
+  if(e.code==='Digit1')this.selectWeapon('blade');if(e.code==='Digit2')this.selectWeapon('gun');
   if(e.code==='Space')this.startDodge();if(e.code==='KeyH')this.heal();if(e.code==='KeyR')this.startReturn();
   if(e.code==='KeyQ'&&this.mode==='playing')this.special();
  }
  action(name){
   if(name==='start')this.enterDungeon();else if(name==='attack')this.attack();else if(name==='dodge')this.startDodge();
   else if(name==='interact')this.interact();else if(name==='heal')this.heal();else if(name==='return')this.startReturn();
-  else if(name==='blade'||name==='gun')this.weapon=name;
+  else if(name==='blade'||name==='gun')this.selectWeapon(name);
   else if(name==='pause'){if(this.mode==='paused')this.setMode(this.worldType==='hub'?'hub':'playing');else if(this.mode==='playing')this.setMode('paused');}
+ }
+ selectWeapon(kind,silent=false){
+  this.weapon=kind==='gun'?'gun':'blade';
+  if(this.heroSword)this.heroSword.visible=this.weapon==='blade';
+  if(this.heroGun)this.heroGun.visible=this.weapon==='gun';
+  this.weaponKick=0;
+  if(!silent){this.audio.play('pickup');this.updateHUD();}
  }
  near(x,z,r=2.9){const p=this.playerBody.translation();return Math.hypot(p.x-x,p.z-z)<=r;}
  nearestStation(){
@@ -306,7 +318,7 @@ class Fracture {
  save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(this.progress));}catch{}}
  persistRun(){/* Only the permanent meta-progress is serialized until full run save migration. */this.save();}
  extract(){
-  this.progress.extractions++;this.progress.echoes+=Math.max(0,Math.round(this.killCount*2+this.materials.embers*4));
+  this.audio.play('room');this.progress.extractions++;this.progress.echoes+=Math.max(0,Math.round(this.killCount*2+this.materials.embers*4));
   this.progress.kills+=this.killCount;
   this.progress.inventory.iron=(this.progress.inventory.iron||0)+this.materials.iron;
   this.progress.inventory.embers=(this.progress.inventory.embers||0)+this.materials.embers;
@@ -317,15 +329,15 @@ class Fracture {
   if((this.progress.scrolls||0)<=0){this.notice('Você não possui um pergaminho de retorno');return;}
   this.cast=4;this.castOrigin=this.playerBody.translation();this.notice('RITUAL DE RETORNO · 4 SEGUNDOS · NÃO SE MOVA');
  }
- heal(){if(this.mode!=='playing'||this.potions<=0||this.hp===this.maxHp)return;this.potions--;this.hp=Math.min(this.maxHp,this.hp+38);this.notice('POÇÃO DE VIDA · +38');this.updateHUD();}
- startDodge(){if(this.mode!=='playing'||this.dashCooldown>0)return;this.dashTime=.22;this.dashCooldown=.95;this.invuln=Math.max(this.invuln,.27);this.notice('');}
+ heal(){if(this.mode!=='playing'||this.potions<=0||this.hp===this.maxHp)return;this.potions--;this.hp=Math.min(this.maxHp,this.hp+38);this.audio.play('heal');this.notice('POÇÃO DE VIDA · +38');this.updateHUD();}
+ startDodge(){if(this.mode!=='playing'||this.dashCooldown>0)return;this.dashTime=.22;this.dashCooldown=.95;this.invuln=Math.max(this.invuln,.27);this.audio.play('dodge');this.notice('');}
  special(){if(this.mode!=='playing'||this.attackCooldown>0)return;this.weapon='blade';this.attackCooldown=.8;const p=this.playerBody.translation();
   for(const enemy of this.enemyUnits)if(enemy.hp>0&&Math.hypot(enemy.x-p.x,enemy.z-p.z)<4.3)this.hitEnemy(enemy,23);
   this.pulse(p.x,p.z,0x8bdfed,1.8);
  }
  attack(forceGun=false){if(this.mode!=='playing'||this.attackCooldown>0)return;
   const gun=forceGun||this.weapon==='gun',range=gun?13.5:3.0,angle=gun?.36:1.05;
-  this.attackCooldown=gun?.46:.39;
+  this.attackCooldown=gun?.46:.39;this.lastAttack=gun?'gun':'blade';this.weaponKick=gun?1:.6;this.audio.play(gun?'gun':'sword');
   const p=this.playerBody.translation(),dir=this.aim;
   let nearest=null,distBest=999;
   for(const e of this.enemyUnits){if(e.hp<=0)continue;
@@ -335,7 +347,7 @@ class Fracture {
   }
   if(gun&&nearest)this.hitEnemy(nearest,15);
   this.pulse(p.x+dir.x*2.4,p.z+dir.z*2.4,gun?0x7bdff7:0xffdd96,gun?.24:.50);
-  this.playMotion(this.heroAnimations,this.heroAnimationState,'attack');this.heroAnimationState='attack';
+  this.playMotion(this.heroAnimations,this.heroAnimationState,gun?'shoot':'attack');this.heroAnimationState=gun?'shoot':'attack';
   this.updateHUD();
  }
  lineOfSight(ax,az,bx,bz){
@@ -355,7 +367,7 @@ class Fracture {
   mesh.rotation.x=-Math.PI/2;mesh.position.set(x,.13,z);this.worldGroup.add(mesh);this.fx.push({mesh,time:.43,max:.43});
  }
  hitEnemy(e,damage){e.hp-=damage;e.stagger=.16;
-  this.pulse(e.x,e.z,0xffad8d,.43);if(e.hp<=0){e.hp=0;this.enemyDown(e);}
+  this.pulse(e.x,e.z,0xffad8d,.43);this.audio.play('hit');if(e.hp<=0){e.hp=0;this.enemyDown(e);}
  }
  enemyDown(e){
   this.killCount++;this.xp+=e.kind==='warden'?190:e.kind==='knight'?27:16;
@@ -366,7 +378,7 @@ class Fracture {
   const room=this.rooms[e.room];if(room&&!this.enemyUnits.some(u=>u.room===room.index)){
    room.cleared=true;room.active=false;this.removeGates();
    this.notice(room.layout.theme==='boss'?'GUARDIÃO DERROTADO · E PARA EXTRAIR':'CÂMARA LIBERADA · OS PORTÕES SE ABRIRAM');
-   this.pulse(worldX(room.index,9),worldZ(6),0x8ce5c3,3);
+   this.pulse(worldX(room.index,9),worldZ(6),0x8ce5c3,3);this.audio.play('room');
   }
   this.updateHUD();
  }
@@ -390,7 +402,7 @@ class Fracture {
  configureAnimations(mesh,name){
   const clips=this.animationClips.get(name)||[];
   const mixer=new THREE.AnimationMixer(mesh),actions={};
-  const search={idle:/idle|standing/i,run:/run|walk/i,attack:/melee_attack|attack|slash|swing/i,hit:/hit|hurt|impact/i,death:/death|die/i};
+  const search={idle:/idle|standing/i,run:/run|walk/i,attack:/melee_attack|attack|slash|swing/i,shoot:/ranged|shoot|fire|bow|throw|spellcast/i,hit:/hit|hurt|impact/i,death:/death|die/i};
   for(const [id,pattern] of Object.entries(search)){
    const clip=clips.find(c=>pattern.test(c.name));if(clip)actions[id]=mixer.clipAction(clip);
   }
@@ -400,7 +412,7 @@ class Fracture {
  playMotion(actions,last,name){
   const desired=actions?.[name]||actions?.idle;if(!desired)return;
   const previous=actions?.[last];if(previous&&previous!==desired)previous.fadeOut(.13);
-  if(name==='attack'||name==='hit'){desired.setLoop(THREE.LoopOnce,1);desired.clampWhenFinished=true;}
+  if(name==='attack'||name==='shoot'||name==='hit'){desired.setLoop(THREE.LoopOnce,1);desired.clampWhenFinished=true;}
   else desired.setLoop(THREE.LoopRepeat,Infinity);
   desired.reset().fadeIn(.13).play();
  }
@@ -414,7 +426,7 @@ class Fracture {
    this.spawnEnemy(room,col,row,room.layout.theme==='boss'?'warden':n===0&&room.index>1?'knight':'orc');
   }
   this.addGates(room);this.setObjective(room.layout.name+' · ELIMINE OS INIMIGOS');
-  this.notice('CÂMARA SELADA · SOBREVIVA');
+  this.notice('CÂMARA SELADA · SOBREVIVA');this.audio.play('gate');
  }
  addGates(room){this.removeGates();
   for(const side of [-1,1]){
@@ -467,12 +479,12 @@ class Fracture {
    }
    if(e.windup>0){e.windup-=dt;if(e.windup<=0){
     if(distance<(e.kind==='warden'?3.3:2.05)&&this.invuln<=0&&this.dashTime<=0){
-     this.hp-=e.kind==='warden'?30:17;this.invuln=.55;this.cast=0;this.pulse(player.x,player.z,0xff445f,.84);
+     this.hp-=e.kind==='warden'?30:17;this.audio.play('hurt');this.invuln=.55;this.cast=0;this.pulse(player.x,player.z,0xff445f,.84);
      if(this.hp<=0){this.hp=0;this.die();}this.updateHUD();}
    }}
   }
  }
- die(){this.setMode('defeat');this.materials.iron=Math.floor(this.materials.iron*.35);this.materials.embers=Math.floor(this.materials.embers*.2);
+ die(){this.audio.play('death');this.setMode('defeat');this.materials.iron=Math.floor(this.materials.iron*.35);this.materials.embers=Math.floor(this.materials.embers*.2);
   this.progress.kills+=this.killCount;this.save();this.notice('VOCÊ CAIU · O ESPÓLIO FOI PERDIDO');
   $('menu').innerHTML=`<div class="panel"><span class="eyebrow">FRACTURE</span><h1>O ECO SE APAGOU</h1><p>A dificuldade permanece. Tente uma nova incursão.</p><button id="tryagain">VOLTAR À CÂMARA ÂNCORA</button></div>`;
   $('menu').classList.remove('hidden');$('tryagain').onclick=()=>this.openHub();
@@ -499,9 +511,14 @@ class Fracture {
  }
  updateVisuals(dt){const p=this.playerBody.translation();
   if(this.heroPivot){this.heroPivot.position.set(p.x,0,p.z);
-   const animation=this.attackCooldown>.14?'attack':this.dashTime>0?'run':this.isMoving?'run':'idle';
+   const animation=this.attackCooldown>.14?(this.lastAttack==='gun'?'shoot':'attack'):this.dashTime>0?'run':this.isMoving?'run':'idle';
    if(animation!==this.heroAnimationState){this.playMotion(this.heroAnimations,this.heroAnimationState,animation);this.heroAnimationState=animation;}
-   this.heroMixer?.update(dt);
+   this.weaponKick=Math.max(0,this.weaponKick-dt*5.6);
+    if(this.weaponRig){
+      this.weaponRig.position.z=this.weapon==='gun'?-this.weaponKick*.12:0;
+      this.weaponRig.rotation.z=this.weapon==='gun'?-this.weaponKick*.22:Math.sin((1-this.weaponKick)*Math.PI)*this.weaponKick*.75;
+    }
+    this.heroMixer?.update(dt);
   }
   for(const e of this.enemyUnits){const t=e.body.translation();e.x=t.x;e.z=t.z;e.visual.position.set(t.x,0,t.z);
    const animation=e.stagger>0?'hit':e.windup>0?'attack':e.path?.length?'run':'idle';
