@@ -204,7 +204,7 @@
     for(let i=0;i<6;i++){const a=beat*.7+i*2.41;ell(p.x+Math.sin(a)*56,p.y-103+Math.cos(a)*68,3.5,3.5,"#b4edff");}
     g.restore();isoGlow(x,y-120,215,"#458fe94b");
     const focus=distance({x:px,y:py},{x,y});
-    if(focus<165)isoText(hubActive?"[ E ] ATRAVESSAR A FRATURA":run.floor===1?"[ E ] EXTRAIR ESPÓLIO":"[ E ] VOLTAR AO ANDAR ANTERIOR",p.x,p.y-208,15,"#d0f4ff");
+    if(!hubActive&&focus<115)isoText(run.floor===1?"[ E ] EXTRAIR ESPÓLIO":"[ E ] VOLTAR AO ANDAR ANTERIOR",p.x,p.y-208,15,"#d0f4ff");
   }
   function floorDecor(x,y,kind) {
     const p=isoPoint(x,y);
