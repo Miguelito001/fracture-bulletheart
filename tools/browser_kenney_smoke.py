@@ -27,7 +27,7 @@ try:
   print('KENNEY PNG LOADED:',data,flush=True);assert data['count']==48 and data['hub'] and data['frame']>0
   citadel=page.evaluate("() => window.__fractureCitadel")
   assert citadel and citadel['architecture'] and citadel['tiles']==55,citadel
-  page.wait_for_function("() => [...Array(55)].every((_,i)=>{let im=new Image();return true})")
+  page.wait_for_function("() => window.__fractureCitadel?.ready?.() === true", timeout=30000)
   print('FRACTURED CITADEL ACTIVE:',citadel,flush=True)
   page.wait_for_timeout(400)
   page.screenshot(path=str(ROOT/'artpass-hub-smoke.png'))
@@ -41,6 +41,26 @@ try:
   page.wait_for_timeout(450)
   page.screenshot(path=str(ROOT/'artpass-combat-smoke.png'))
   assert not errors,'JS errors: '+str(errors)
-  print('GAMEPLAY OK:',run,'PAGE ERRORS: 0',flush=True)
+  # Return physically to Node Zero and extract an actual material into permanent storage.
+  page.evaluate("() => {mobs.forEach(m=>m.dead=true);current=null;px=rooms[0].cx;py=rooms[0].cy;run.cargo=[{id:'scrap',qty:3}];}")
+  old_stash=page.evaluate("() => save.stash.scrap||0")
+  old_count=page.evaluate("() => save.extractions||0")
+  page.keyboard.press('e')
+  page.wait_for_timeout(150)
+  extraction=page.evaluate("() => ({hub:hubActive,mode,stash:save.stash.scrap||0,extractions:save.extractions||0})")
+  assert extraction['hub'] and extraction['mode']=='choice',extraction
+  assert extraction['stash']==old_stash+3,extraction
+  assert extraction['extractions']==old_count+1,extraction
+  assert not errors,'JS errors: '+str(errors)
+  print('GAMEPLAY AND EXTRACTION OK:',run,extraction,'PAGE ERRORS: 0',flush=True)
+  # Emit genuine downscaled browser captures in QA logs for visual inspection.
+  from PIL import Image
+  from io import BytesIO
+  import base64
+  for label,filename in [('HUB','artpass-hub-smoke.png'),('COMBAT','artpass-combat-smoke.png')]:
+   im=Image.open(ROOT/filename).convert('RGB')
+   im.thumbnail((640,360))
+   buf=BytesIO();im.save(buf,format='JPEG',quality=58,optimize=True)
+   print('FRACTURE_VISUAL_'+label+'_START'+base64.b64encode(buf.getvalue()).decode('ascii')+'FRACTURE_VISUAL_'+label+'_END',flush=True)
   b.close()
 finally:srv.terminate()
