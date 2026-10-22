@@ -512,7 +512,7 @@ class Fracture {
   this.audio.play('dodge');this.notice('');
   if(this.heroAnimations?.dodge){this.playMotion(this.heroAnimations,this.heroAnimationState,'dodge',true);this.heroAnimationState='dodge';}
  }
- special(){if(this.mode!=='playing'||this.attackCooldown>0)return;this.selectWeapon('blade');this.attackCooldown=.8;this.attackPoseLength=.48;this.attackPose=.48;this.lastAttack='blade';this.playMotion(this.heroAnimations,this.heroAnimationState,'attack',true);this.heroAnimationState='attack';this.audio.play('sword');const p=this.playerBody.translation();
+ special(){if(this.mode!=='playing'||this.attackCooldown>0)return;this.attackCooldown=.8;this.attackPoseLength=.48;this.attackPose=.48;this.lastAttack=this.equipment.hand1;this.attackHand='hand1';const motion=this.lastAttack==='gun'?'shoot':'attack';this.playMotion(this.heroAnimations,this.heroAnimationState,motion,true);this.heroAnimationState=motion;this.audio.play(this.lastAttack==='gun'?'gun':'sword');const p=this.playerBody.translation();
   for(const enemy of this.enemyUnits)if(enemy.hp>0&&Math.hypot(enemy.x-p.x,enemy.z-p.z)<4.3)this.hitEnemy(enemy,23);
   this.pulse(p.x,p.z,0x8bdfed,1.8);
  }
