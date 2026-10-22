@@ -12,3 +12,22 @@
 /* Equipped weapon is always visible in the HUD, matching the model in hand. */
 .weapon-group button.equipped{border-color:#f2c47c;background:linear-gradient(160deg,#374e63,#182a43);box-shadow:0 0 0 1px #dcb26a80,0 2px 22px #cf9f5d50;}
 .weapon-group button[aria-pressed="true"] kbd{color:#fff1d0}
+
+/* Damage feedback stays screen-space and never moves the camera. */
+#combat-feedback { position:fixed;inset:0;z-index:14;pointer-events:none;overflow:hidden;user-select:none; }
+.fracture-damage{position:absolute;transform:translate(-50%,-50%);font:900 25px/1 system-ui,sans-serif;
+ color:#fff1c4;letter-spacing:.02em;text-shadow:0 2px 2px #291318,0 0 13px #f17f47;
+ white-space:nowrap;will-change:transform,opacity;}
+.fracture-damage.fracture-critical{font-size:34px;color:#ffcd73;text-shadow:0 1px 5px #502423,0 0 20px #fb9a45;}
+.fracture-hitmarker{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.8);
+ color:#ffddb2;font:900 28px/1 monospace;text-shadow:0 0 12px #ff8b58;opacity:0;}
+.fracture-hitmarker.active{animation:fracture-hit-blip .18s ease-out both;}
+@keyframes fracture-hit-blip{
+ 0%{transform:translate(-50%,-50%) scale(.45);opacity:0}
+ 25%{transform:translate(-50%,-50%) scale(1.08);opacity:.95}
+ 100%{transform:translate(-50%,-50%) scale(1.25);opacity:0}
+}
+@media (prefers-reduced-motion:reduce) {
+ .fracture-hitmarker.active{animation:none;opacity:.9}
+ .fracture-damage{transition:none}
+}
