@@ -1,4 +1,4 @@
-import {Tile, type EffectEvent, type GameState, type Point, type MonsterState} from "../core/types";
+import {type EffectEvent, type GameState, type MonsterState} from "../core/types";
 
 // FRACTURE: BULLETHEART — fully 2D, pixel-perfect renderer.
 // Art: 0x72 DungeonTileset II (CC0), pinned and mirrored for repeatable builds.
@@ -42,7 +42,6 @@ export class PixelRenderer{
  private cx=0;
  private cy=0;
  private cameraReady=false;
- private last=performance.now();
  private sparks:Spark[]=[];
  private tilesDrawn=0;
  private actorsDrawn=0;
@@ -227,7 +226,6 @@ export class PixelRenderer{
   state.debug.animatedSprites=this.actorsDrawn;
   state.debug.objects=this.tilesDrawn+this.actorsDrawn;
   state.debug.triangles=0;state.debug.particles=this.sparks.length;
-  this.last=now;
  }
  getInputHit(clientX:number,clientY:number,state:GameState):InputHit{
   const rect=this.canvas.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top;
