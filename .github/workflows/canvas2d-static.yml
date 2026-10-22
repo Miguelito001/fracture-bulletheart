@@ -11,7 +11,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,3 +42,37 @@ jobs:
           git commit -m "publish: standalone FRACTURE Canvas 2D from ${GITHUB_SHA}"
           git push --force origin HEAD:refs/heads/playable-2d
           echo "https://raw.githack.com/Miguelito001/fracture-bulletheart/playable-2d/index.html" >> "$GITHUB_STEP_SUMMARY"
+      - name: Install Chromium to verify the PUBLIC playable URL
+        run: npx playwright install --with-deps chromium
+      - name: Smoke test external public Canvas 2D game
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from '@playwright/test';
+          import { mkdir } from 'node:fs/promises';
+          const browser = await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=swiftshader']});
+          const page=await browser.newPage({viewport:{width:1366,height:768}});
+          const errors=[];page.on('pageerror',e=>errors.push(e.message));
+          const url='https://raw.githack.com/Miguelito001/fracture-bulletheart/playable-2d/index.html';
+          let valid=false,lastError='';
+          for(let n=0;n<6;n++){
+            try{
+              const res=await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
+              if(!res||res.status()!==200)throw Error('HTTP '+res?.status());
+              await page.waitForFunction(()=>window.__torchlineQa?.renderer==='canvas2d',{timeout:18000});
+              valid=true;break;
+            }catch(error){lastError=String(error);await page.waitForTimeout(4000);}
+          }
+          await mkdir('qa',{recursive:true});
+          await page.screenshot({path:'qa/canvas2d-public-preview.png',fullPage:true});
+          const outcome=await page.evaluate(()=>({title:document.title,canvas:!!document.querySelector('canvas')?.getContext('2d'),state:window.__torchlineQa?.state(),metrics:window.__torchlineQa?.metrics()}));
+          console.log('PUBLIC_2D_BROWSER_PROOF',JSON.stringify({url,valid,outcome,errors,lastError}));
+          await browser.close();
+          if(!valid||!outcome.canvas||!outcome.state?.player||errors.length)process.exit(1);
+          JS
+      - name: Archive public-browser screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fracture-canvas2d-public-preview
+          path: qa/canvas2d-public-preview.png
+          retention-days: 14
