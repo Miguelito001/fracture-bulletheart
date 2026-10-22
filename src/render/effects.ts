@@ -16,6 +16,9 @@ export class EffectLayer {
       if (event.type === "message" || event.type === "audio") continue;
       if (event.type === "damage" && event.amount === undefined) continue;
       const duration = event.type === "damage" ? 720 : event.type === "floor-transition" ? 900 : 560;
+      // Visual effect budget. High enemy counts must not create hundreds of
+      // translucent overlapping sprites or stall the Canvas2D renderer.
+      if (this.effects.length >= 24) this.effects.shift();
       this.effects.push({ ...event, age: 0, duration });
       if (event.heavy || event.type === "floor-transition") this.shake = Math.max(this.shake, event.type === "floor-transition" ? 8 : 5);
     }
