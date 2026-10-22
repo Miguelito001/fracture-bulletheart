@@ -5,6 +5,8 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import RAPIER from '@dimforge/rapier3d-compat';
 import EasyStar from 'easystarjs';
 import { AudioBus } from './audio.js';
+import { screenRelativeInput,moveVelocity,wrapRotation,canStandAt } from './locomotion.js';
+import { CombatFeedback } from './feedback.js';
 import { HUB, ROOMS, WIDTH, HEIGHT, TILE, chooseExpedition, validateBlueprint, worldX, worldZ } from './rooms.js';
 
 const $=(id)=>document.getElementById(id);
@@ -61,7 +63,7 @@ class Fracture {
   this.sun.shadow.bias=-.00035;this.scene.add(this.sun);this.lights=[];
   this.raycaster=new THREE.Raycaster();this.plane=new THREE.Plane(new THREE.Vector3(0,1,0),-.05);
   this.pointer=new THREE.Vector2(0,0);this.aim=new THREE.Vector3(1,0,0);
-  this.keys=new Set();this.mode='loading';this.progress=loadProgress();this.hp=100;this.maxHp=100;
+  this.keys=new Set();this.velocity=new THREE.Vector3();this.dashVector=new THREE.Vector3();this.pointerActive=false;this.attackPose=0;this.wasBlocked=false;this.mode='loading';this.progress=loadProgress();this.hp=100;this.maxHp=100;
   this.weapon='blade';this.audio=new AudioBus();this.lastAttack='blade';this.potions=2;this.xp=0;this.level=1;this.materials={iron:0,embers:0};
   this.rooms=[];this.roomIndex=0;this.enemyUnits=[];this.drops=[];this.gates=[];this.statueActors=[];
   this.elapsed=0;this.hitCooldown=0;this.attackCooldown=0;this.dashCooldown=0;this.dashTime=0;this.invuln=0;
@@ -224,6 +226,8 @@ class Fracture {
    }});}
   if(this.actorGroup){this.scene.remove(this.actorGroup);}this.actorGroup=new THREE.Group();this.scene.add(this.actorGroup);this.heroMixer=null;this.heroAnimations={};
   this.worldGroup=new THREE.Group();this.scene.add(this.worldGroup);this.lights=[];this.gates=[];this.drops=[];this.enemyUnits=[];this.statueActors=[];this.wallSegments=[];
+  if(this.feedback)this.feedback.dispose();
+  this.feedback=new CombatFeedback(this.camera,this.worldGroup);this.velocity.set(0,0,0);this.dashVector.set(0,0,0);this.attackPose=0;
   this.setupPhysics();
  }
  createHero(x,z){
@@ -260,7 +264,7 @@ class Fracture {
   this.setMode('playing');this.setObjective('NÓ ZERO · Avance, vença os guardiões e retorne vivo');
   this.notice('EXPEDIÇÃO INICIADA · O PORTAL PERMANECE NO NÓ ZERO');
  }
- movePointer(e){this.pointer.x=(e.clientX/innerWidth)*2-1;this.pointer.y=1-(e.clientY/innerHeight)*2;
+ movePointer(e){this.pointerActive=true;this.pointer.x=(e.clientX/innerWidth)*2-1;this.pointer.y=1-(e.clientY/innerHeight)*2;
   this.raycaster.setFromCamera(this.pointer,this.camera);const target=new THREE.Vector3();
   if(this.raycaster.ray.intersectPlane(this.plane,target)){
    const here=this.playerBody?.translation();if(here){
@@ -533,22 +537,43 @@ class Fracture {
   $('menu').classList.remove('hidden');$('tryagain').onclick=()=>this.openHub();
  }
  // Kinematic collision displacement is resolved by Rapier, including dash and obstacles.
- updateMovement(dt){const x=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0);
-  const z=(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0);
-  const desired=new THREE.Vector3(x,0,z);this.isMoving=desired.lengthSq()>.05;
-  if(this.isMoving)desired.normalize();
-  if(this.dashTime>0){this.dashTime-=dt;desired.multiplyScalar(2.7);}
-  desired.multiplyScalar(dt*5.4);
-  const previous=this.playerBody.translation();
-  this.charController.computeColliderMovement(this.playerCollider,{x:desired.x,y:0,z:desired.z});
-  const displacement=this.charController.computedMovement();
-  this.playerBody.setNextKinematicTranslation({x:previous.x+displacement.x,y:1.05,z:previous.z+displacement.z});
+ updateMovement(dt){
+  // Camera-relative WASD like shipped Three.js top-down controllers. Tap and
+  // diagonals retain identical speed; damped velocity gives instant response
+  // without abrupt start/stop or floating on ice.
+  const horizontal=Number(this.keys.has('KeyD')||this.keys.has('ArrowRight'))-Number(this.keys.has('KeyA')||this.keys.has('ArrowLeft'));
+  const vertical=Number(this.keys.has('KeyS')||this.keys.has('ArrowDown'))-Number(this.keys.has('KeyW')||this.keys.has('ArrowUp'));
+  const input=screenRelativeInput(horizontal,vertical,this.cameraOffset);
+  const holding=input.lengthSq()>.005;
+  const desired=input.multiplyScalar(5.4);
+  moveVelocity(this.velocity,desired,dt,27,39);
+  this.isMoving=this.velocity.lengthSq()>.08;
+  let movement=this.velocity.clone();
+  if(this.dashTime>0){
+   this.dashTime=Math.max(0,this.dashTime-dt);
+   movement.copy(this.dashVector).multiplyScalar(13.5);
+  }
+  movement.multiplyScalar(dt);
+  const before=this.playerBody.translation();
+  // Rapier's shipped character controller is the sole source of obstacle
+  // resolution. The map mask additionally prevents walking off rendered floor.
+  this.charController.computeColliderMovement(this.playerCollider,{x:movement.x,y:0,z:movement.z});
+  const permitted=this.charController.computedMovement();
+  let nextX=before.x+permitted.x,nextZ=before.z+permitted.z;
+  if(!canStandAt(this.rooms,nextX,nextZ,TILE)){
+   if(canStandAt(this.rooms,nextX,before.z,TILE))nextZ=before.z;
+   else if(canStandAt(this.rooms,before.x,nextZ,TILE))nextX=before.x;
+   else{nextX=before.x;nextZ=before.z;}
+  }
+  this.wasBlocked=holding&&Math.hypot(nextX-before.x,nextZ-before.z)<.001;
+  this.playerBody.setNextKinematicTranslation({x:nextX,y:1.05,z:nextZ});
   if(this.heroPivot){
-   const a=Math.atan2(this.aim.x,this.aim.z);
-   this.heroPivot.rotation.y+=(a-this.heroPivot.rotation.y)*CLAMP(dt*10,0,1);
+   const look=(this.worldType==='hub'||!this.pointerActive||this.aim.lengthSq()<.01)
+    ?(this.isMoving?this.velocity:this.aim):this.aim;
+   if(look.lengthSq()>.015)this.heroPivot.rotation.y=wrapRotation(this.heroPivot.rotation.y,Math.atan2(look.x,look.z),18,dt);
   }
   if(this.cast>0){
-   if(this.isMoving||Math.hypot(previous.x-this.castOrigin.x,previous.z-this.castOrigin.z)>.14){this.cast=0;this.notice('RITUAL INTERROMPIDO');}
+   if(holding||Math.hypot(before.x-this.castOrigin.x,before.z-this.castOrigin.z)>.14){this.cast=0;this.notice('RITUAL INTERROMPIDO');}
    else{this.cast-=dt;if(this.cast<=0){this.progress.scrolls--;this.extract();}}
   }
  }
