@@ -40,7 +40,7 @@ export function hideEmbeddedEquipment(root){
     const ownName=node.name||'';
     const names=[...ancestral,...materialNames].join(' ');
     if(BUILT_IN.test(names)&&!/(body|armour|armor|helmet|head|hand|leg|cape|torso|chestplate|glove)/i.test(ownName)){
-      node.visible=false;node.userData.hiddenStarterGear=true;hidden.push(node.name||'(unnamed)');
+      node.visible=false;(node.userData ||= {}).hiddenStarterGear=true;hidden.push(node.name||'(unnamed)');
     }
   });
   return hidden;
