@@ -8,7 +8,7 @@ import { bindKeyboard } from "./input/input";
 import { ThreeRenderer } from "./render/three-renderer";
 import { floorOneSceneDoors } from "./scene/navigation";
 import { HudController } from "./ui/hud";
-import type { DebugState, GameAction, GameState } from "./core/types";
+import type { DebugState, EffectEvent, GameAction, GameState } from "./core/types";
 import "./styles.css";
 
 const SAVE_KEY = "fracture-bulletheart-cryptfire-save-v2";
@@ -57,6 +57,7 @@ type TorchlineQa = {
   dispatch: (action: GameAction) => void;
   advance: (ms: number) => void;
   killPlayer: () => void;
+  fxStress: (events?: number) => {active:number;beam:number;spark:number;ring:number;text:number};
 };
 
 type HotModule = {
@@ -291,6 +292,23 @@ window.__torchlineQa = {
   }),
   dispatch,
   killPlayer: () => game.forcePlayerDeathForDebug(),
+  fxStress: (count=180) => {
+    const p=game.state.player;
+    const types: EffectEvent["type"][]=["damage","hit","death","loot-beam","pickup","shrine","swing"];
+    for(let batch=0;batch<4;batch++){
+      const effects:EffectEvent[]=Array.from({length:Math.min(400,count)},(_,i)=>({
+        id:"fx-stress:"+batch+":"+i,
+        type:types[i%types.length]!,
+        x:p.x+Math.cos(i*0.57)*3.5,
+        y:p.y+Math.sin(i*0.57)*3.5,
+        amount:12+i%25,
+        color:i%2?"#fff0b5":"#bcdcff",
+        heavy:true
+      }));
+      renderer.render(game.state,effects,16,performance.now()+batch*17);
+    }
+    return renderer.fxSnapshot();
+  },
   advance: (ms: number) => {
     let remaining = Math.max(0, Math.min(15000, ms));
     while (remaining > 0 && game.state.mode === "playing") {
