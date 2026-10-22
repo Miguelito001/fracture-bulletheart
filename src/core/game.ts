@@ -45,6 +45,9 @@ const PLAYER_SPEED = 4.15;
 const PLAYER_ATTACK_RANGE = 1.28;
 const PLAYER_ATTACK_COOLDOWN_MS = 620;
 const PLAYER_ABILITY_COOLDOWN_MS = 4200;
+const PLAYER_DODGE_COOLDOWN_MS = 1250;
+const PLAYER_DODGE_INVULN_MS = 240;
+const PLAYER_DODGE_DISTANCE = 1.70;
 const MONSTER_MELEE_RANGE = 1.05;
 const FOV_REFRESH_MS = 140;
 const MONSTER_PATH_RECALC_MS = 360;
@@ -315,6 +318,9 @@ export class TorchlineGame {
       case "basicAttack":
         this.commandBasicAttack();
         break;
+      case "dodge":
+        this.commandDodge();
+        break;
       case "useAbility":
         this.commandUseAbility();
         break;
@@ -456,6 +462,8 @@ export class TorchlineGame {
     player.animationLockMs = player.animationLockMs ?? 0;
     player.attackCooldownMs = player.attackCooldownMs ?? 0;
     player.abilityCooldownMs = player.abilityCooldownMs ?? 0;
+    player.dodgeCooldownMs = player.dodgeCooldownMs ?? 0;
+    player.dodgeInvulnMs = player.dodgeInvulnMs ?? 0;
     player.footstepCooldownMs = player.footstepCooldownMs ?? 0;
     return player;
   }
@@ -701,13 +709,54 @@ export class TorchlineGame {
   }
 
   private commandBasicAttack(): void {
-    const target = this.currentOrNearestMonster(PLAYER_ATTACK_RANGE + 0.25);
-    if (target) this.commandTargetActor(target.id);
-    else {
-      this.state.turn += 1;
-      this.state.debug.lastCommand = "guard";
-      this.pushMessage("You guard the torchline.");
+    const player=this.state.player;
+    if ((player.attackCooldownMs ?? 0) > 0) return;
+    const target=this.currentOrNearestMonster(PLAYER_ATTACK_RANGE + 0.46);
+    if(target){
+      // Immediate strike at a nearby opponent without requiring a mouse lock.
+      // Running into the enemy never freezes the player's direct WASD steering.
+      this.commandTargetActor(target.id);
+      return;
     }
+    // A miss must still SWING the sword, not display an unrelated "guard" log.
+    player.attackCooldownMs=PLAYER_ATTACK_COOLDOWN_MS;
+    this.setActorAnimation(player,"attack",320);
+    this.state.turn+=1;
+    this.state.debug.lastCommand="sword sweep";
+    const angle=player.facing ?? -Math.PI/4;
+    this.pushEffect({
+      type:"swing",x:player.x+Math.cos(angle)*.72,y:player.y+Math.sin(angle)*.72,
+      color:"#ffdeaa",audio:"hit-light"
+    });
+  }
+
+  private commandDodge(): void {
+    const player=this.state.player;
+    if((player.dodgeCooldownMs ?? 0)>0) return;
+    const a=player.facing ?? -Math.PI/4;
+    const input=this.directInput;
+    const length=Math.hypot(input.x,input.y);
+    const dx=length>0.01?input.x/length:Math.cos(a);
+    const dy=length>0.01?input.y/length:Math.sin(a);
+    const x0=player.x,y0=player.y;
+    // Swept collision in increments prevents clipping through narrow pillars,
+    // doors, walls and floor boundaries. Exactly the same map collision as walking.
+    const steps=12,step=PLAYER_DODGE_DISTANCE/steps;
+    for(let i=0;i<steps;i++){
+      const x=player.x+dx*step,y=player.y+dy*step;
+      if(!this.isWorldWalkable(x,y,.28))break;
+      player.x=x;player.y=y;
+    }
+    if(Math.hypot(player.x-x0,player.y-y0)<.12)return;
+    player.dodgeCooldownMs=PLAYER_DODGE_COOLDOWN_MS;
+    player.dodgeInvulnMs=PLAYER_DODGE_INVULN_MS;
+    player.facing=Math.atan2(dy,dx);
+    player.targetActorId=null;player.moveTarget=null;player.movePath=[];
+    this.setActorAnimation(player,"run",245);
+    this.state.turn+=1;
+    this.state.debug.lastCommand="dodge";
+    this.pushEffect({type:"dodge",x:x0,y:y0,color:"#7de8e7",audio:"footstep-stone-2"});
+    this.pushEffect({type:"dodge",x:player.x,y:player.y,color:"#7de8e7"});
   }
 
   private commandUseAbility(): void {
@@ -806,6 +855,8 @@ export class TorchlineGame {
     const player = this.state.player;
     player.attackCooldownMs = Math.max(0, (player.attackCooldownMs ?? 0) - dtMs);
     player.abilityCooldownMs = Math.max(0, (player.abilityCooldownMs ?? 0) - dtMs);
+    player.dodgeCooldownMs = Math.max(0, (player.dodgeCooldownMs ?? 0) - dtMs);
+    player.dodgeInvulnMs = Math.max(0, (player.dodgeInvulnMs ?? 0) - dtMs);
     player.footstepCooldownMs = Math.max(0, (player.footstepCooldownMs ?? 0) - dtMs);
     player.animationLockMs = Math.max(0, (player.animationLockMs ?? 0) - dtMs);
     for (const monster of this.state.monsters) {
@@ -1324,6 +1375,7 @@ export class TorchlineGame {
     let attack = monster.attack;
     if (monster.elite?.affix === "ragebrand" && monster.hp / monster.maxHp < 0.45) attack += 3;
     const damage = Math.max(1, attack - stats.defense + rng.int(0, 2));
+    if ((this.state.player.dodgeInvulnMs ?? 0)>0) return;
     this.state.player.hp -= damage;
     const verb = ranged ? "chants at" : "hits";
     this.pushMessage(
