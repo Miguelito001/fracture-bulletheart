@@ -358,7 +358,7 @@ class Fracture {
   this.audio.play('dodge');this.notice('');
   if(this.heroAnimations?.dodge){this.playMotion(this.heroAnimations,this.heroAnimationState,'dodge',true);this.heroAnimationState='dodge';}
  }
- special(){if(this.mode!=='playing'||this.attackCooldown>0)return;this.weapon='blade';this.attackCooldown=.8;const p=this.playerBody.translation();
+ special(){if(this.mode!=='playing'||this.attackCooldown>0)return;this.selectWeapon('blade');this.attackCooldown=.8;this.attackPoseLength=.48;this.attackPose=.48;this.lastAttack='blade';this.playMotion(this.heroAnimations,this.heroAnimationState,'attack',true);this.heroAnimationState='attack';this.audio.play('sword');const p=this.playerBody.translation();
   for(const enemy of this.enemyUnits)if(enemy.hp>0&&Math.hypot(enemy.x-p.x,enemy.z-p.z)<4.3)this.hitEnemy(enemy,23);
   this.pulse(p.x,p.z,0x8bdfed,1.8);
  }
@@ -374,7 +374,7 @@ class Fracture {
   for(const e of this.enemyUnits){if(e.hp<=0)continue;
    const dx=e.x-p.x,dz=e.z-p.z,dist=Math.hypot(dx,dz),a=Math.acos(CLAMP((dx*dir.x+dz*dir.z)/Math.max(.01,dist),-1,1));
    if(dist<range&&a<angle&&this.lineOfSight(p.x,p.z,e.x,e.z)&&dist<distBest){nearest=e;distBest=dist;}
-   if(!gun&&dist<range&&a<angle)this.hitEnemy(e,19*(this.progress.unlocks.includes('forge')?1.12:1));
+   if(!gun&&dist<range&&a<angle&&this.lineOfSight(p.x,p.z,e.x,e.z))this.hitEnemy(e,19*(this.progress.unlocks.includes('forge')?1.12:1));
   }
   if(gun){
    // Aim at the visible mesh under the cursor. Orthographic perspective
@@ -391,10 +391,20 @@ class Fracture {
       screenLock:!!picked,range:nearest?Math.hypot(nearest.x-p.x,nearest.z-p.z):null};
    if(nearest)this.hitEnemy(nearest,15);
   }
+  if(!gun){
+   // Transient authored attack arc gives immediate contact direction, separate
+   // from the impact flash. Its orientation follows actual hitbox direction.
+   const arc=new THREE.Mesh(
+     new THREE.TorusGeometry(1.45,.075,7,38,Math.PI*1.08),
+     new THREE.MeshBasicMaterial({color:0xb9f2fb,transparent:true,opacity:.74,depthWrite:false,blending:THREE.AdditiveBlending})
+   );
+   arc.rotation.x=-Math.PI/2;arc.rotation.z=Math.atan2(dir.z,dir.x)-.55;
+   arc.position.set(p.x,.85,p.z);this.worldGroup.add(arc);this.fx.push({mesh:arc,time:.17,max:.17});
+  }
   if(gun){
     // A short-lived projectile tracer follows the real ray aim/hit direction,
     // distinct from the sword's wide impact ring.
-    const dist=nearest?Math.max(1,distBest):8.5;
+    const dist=nearest?Math.max(1,Math.hypot(nearest.x-p.x,nearest.z-p.z)):8.5;
     const origin=new THREE.Vector3(p.x+dir.x*.7,1.32,p.z+dir.z*.7);
     const tip=new THREE.Vector3(p.x+dir.x*dist,1.28,p.z+dir.z*dist);
     const segment=tip.clone().sub(origin),tracer=new THREE.Mesh(
