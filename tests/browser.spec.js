@@ -28,6 +28,13 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  });
  expect(rig.gunAsset).toBe(true);expect(rig.gunMesh).toBe(true);expect(rig.swordMesh).toBe(true);
  expect(rig.boundaryWalls).toBeGreaterThan(10);expect(rig.edgeAlignment).toBe(true);
+ const batches=await page.evaluate(()=>{
+  const g=window.__FRACTURE3D__;
+  return {stoneTiles:g.instancedFloorCount,drawBatches:g.worldGroup.children.filter(o=>o.isInstancedMesh).length};
+ });
+ expect(batches.stoneTiles).toBeGreaterThan(130);
+ expect(batches.drawBatches).toBeGreaterThan(2);
+ console.log('INSTANCED_CC0_FLOOR_QA',JSON.stringify(batches));
  const cameraBefore=await page.evaluate(()=>{
   const g=window.__FRACTURE3D__;return {position:g.camera.position.toArray(),target:g.cameraTarget.toArray()};
  });
@@ -58,6 +65,7 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
    const wanted={x:-basis.x*.01,y:0,z:-basis.z*.01};
    g.charController.computeColliderMovement(g.playerCollider,wanted);
    return {mode:g.mode,keys:[...g.keys],velocity:g.velocity.toArray(),body:p,
+     frames:g.renderedFrames,floorInstances:g.instancedFloorCount,
      wanted,computed:g.charController.computedMovement(),
      isMoving:g.isMoving,blocked:g.wasBlocked,room:g.rooms[0].layout.rows[Math.round(p.z/2.35)]?.[Math.round(p.x/2.35)]};
  });
