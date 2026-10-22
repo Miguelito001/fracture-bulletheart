@@ -42,6 +42,8 @@ jobs:
           git commit -m "publish: standalone FRACTURE Canvas 2D from ${GITHUB_SHA}"
           git push --force origin HEAD:refs/heads/playable-2d
           echo "https://raw.githack.com/Miguelito001/fracture-bulletheart/playable-2d/index.html" >> "$GITHUB_STEP_SUMMARY"
+      - name: Restore browser-test dependency after replacing checkout with dist snapshot
+        run: npm install --no-save --no-audit --no-fund @playwright/test@1.60.0
       - name: Install Chromium to verify the PUBLIC playable URL
         run: npx playwright install --with-deps chromium
       - name: Smoke test external public Canvas 2D game
