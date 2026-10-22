@@ -266,6 +266,9 @@ export class ThreeRenderer {
   private cameraShakeStrength = 0;
   private visualClockMs = 0;
   private lastRenderNow = 0;
+  private qualityScale = 1;
+  private slowRenderStreak = 0;
+  private softwareRenderer = false;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -274,6 +277,13 @@ export class ThreeRenderer {
       alpha: false,
       powerPreference: "high-performance"
     });
+    // Detect WebGL software rasterizers once: a 2,000px canvas on SwiftShader
+    // can make every movement input feel frozen despite correct game physics.
+    const gl = this.renderer.getContext();
+    const ext = gl.getExtension("WEBGL_debug_renderer_info");
+    const gpu = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    this.softwareRenderer = /swiftshader|llvmpipe|software/i.test(gpu);
+    this.qualityScale = this.softwareRenderer ? 0.52 : 1;
     this.renderer.setClearColor(COLOR_BACKGROUND, 1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -353,6 +363,14 @@ export class ThreeRenderer {
     this.syncCameraShake(visualNow);
     this.renderer.render(this.scene, this.camera);
     state.debug.renderMs = Math.round((performance.now() - started) * 10) / 10;
+    // Adaptive resolution only when sustained slow frames are observed.
+    // Never change the camera, actor hitboxes, collision or world coordinates.
+    if (state.debug.renderMs > 65) this.slowRenderStreak += 1;
+    else this.slowRenderStreak = 0;
+    if (this.slowRenderStreak >= 3 && this.qualityScale > 0.55) {
+      this.qualityScale = Math.max(0.55, Math.round((this.qualityScale - 0.12) * 100) / 100);
+      this.slowRenderStreak = 0;
+    }
     state.debug.drawCalls = this.renderer.info.render.calls;
     state.debug.triangles = this.renderer.info.render.triangles;
     state.debug.objects =
@@ -373,7 +391,8 @@ export class ThreeRenderer {
   }
 
   private resize(): void {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // Let hardware keep detail, but never feed software rasterizers a huge backbuffer.
+    const dpr = Math.max(0.5, Math.min(1.5, window.devicePixelRatio || 1) * this.qualityScale);
     const width = Math.max(1, Math.floor(window.innerWidth));
     const height = Math.max(1, Math.floor(window.innerHeight));
     if (this.viewport.width === width && this.viewport.height === height && this.viewport.dpr === dpr) return;
