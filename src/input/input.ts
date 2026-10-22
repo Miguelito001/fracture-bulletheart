@@ -25,7 +25,8 @@ export function movementVector(keys: ReadonlySet<string>): { x: number; y: numbe
 export function bindKeyboard(
   dispatch: (action: GameAction) => void,
   getPlayer?: () => KeyboardPlayer,
-  canMove: () => boolean = () => true
+  canMove: () => boolean = () => true,
+  onDirectInput?: (dx: number, dy: number) => void
 ): MovementController {
   const keys = new Set<string>();
   let lastCommand = -1000;
@@ -53,32 +54,37 @@ export function bindKeyboard(
   const keyup = (event: KeyboardEvent) => {
     const key = event.key.toLowerCase();
     keys.delete(key);
-    if (bindings[key] && !movementVector(keys).x && !movementVector(keys).y && getPlayer && canMove()) {
-      const p = getPlayer();
-      dispatch({ type: "moveTo", x: p.x, y: p.y });
+    if (bindings[key]) {
+      const direction = movementVector(keys);
+      if (onDirectInput) onDirectInput(direction.x, direction.y);
+      else if (!direction.x && !direction.y && getPlayer && canMove()) {
+        const p=getPlayer(); dispatch({type:"moveTo",x:p.x,y:p.y});
+      }
     }
   };
-  const blur = () => keys.clear();
+  const blur = () => { keys.clear(); onDirectInput?.(0, 0); };
   window.addEventListener("keydown", keydown);
   window.addEventListener("keyup", keyup);
   window.addEventListener("blur", blur);
   return {
     tick(now: number) {
-      if (!canMove()) return;
-      const vector = movementVector(keys);
+      const vector = canMove() ? movementVector(keys) : { x: 0, y: 0 };
+      if (onDirectInput) {
+        onDirectInput(vector.x, vector.y);
+        return;
+      }
+      // Legacy path for clients that have not installed direct frame steering.
       if (!vector.x && !vector.y) return;
       if (now - lastCommand < 110) return;
       lastCommand = now;
       const player = getPlayer?.();
-      if (player) {
-        dispatch({ type: "moveTo", x: player.x + vector.x * 2.25, y: player.y + vector.y * 2.25 });
-      } else {
-        dispatch({ type: "move", dx: vector.x, dy: vector.y });
-      }
+      if (player) dispatch({ type: "moveTo", x: player.x + vector.x * 2.25, y: player.y + vector.y * 2.25 });
+      else dispatch({ type: "move", dx: vector.x, dy: vector.y });
     },
     isMoving: () => keys.size > 0,
     dispose() {
       keys.clear();
+      onDirectInput?.(0,0);
       window.removeEventListener("keydown", keydown);
       window.removeEventListener("keyup", keyup);
       window.removeEventListener("blur", blur);
