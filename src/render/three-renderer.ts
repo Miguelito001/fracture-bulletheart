@@ -3770,6 +3770,10 @@ export class ThreeRenderer {
         if (event.heavy) this.addRingFx(event, now, 0.85, 640);
       } else if (event.type === "loot-beam" || event.type === "pickup") {
         this.addBeamFx(event, now);
+      } else if (event.type === "swing") {
+        this.addSwordSwingFx(event, now);
+      } else if (event.type === "dodge") {
+        this.addRingFx(event, now, 0.72, 240);
       } else if (event.type === "hit") {
         this.addSparkFx(event, now);
         if (event.heavy) this.addRingFx(event, now, 0.92, 620);
@@ -3901,6 +3905,25 @@ export class ThreeRenderer {
       baseY: scale,
       kind: "spark"
     });
+  }
+
+  private addSwordSwingFx(event: EffectEvent, now: number): void {
+    // Lightweight readable melee trail. No particles or camera shake needed:
+    // the 210ms arc aligns with the game's contact geometry.
+    const material=new THREE.MeshBasicMaterial({
+      color:colorFromHex(event.color ?? "#ffe6a7",0xffe6a7).getHex(),
+      transparent:true,opacity:.86,blending:THREE.AdditiveBlending,
+      depthWrite:false,side:THREE.DoubleSide,toneMapped:false
+    });
+    const geometry=new THREE.TorusGeometry(.82,.067,5,34,Math.PI*1.25);
+    const mesh=new THREE.Mesh(geometry,material);
+    const pos=this.toWorld({x:event.x!,y:event.y!});
+    mesh.rotation.x=-Math.PI/2;
+    mesh.rotation.z=-.35;
+    mesh.position.set(pos.x,.72,pos.z);
+    this.fxWorld.add(mesh);
+    const id=this.fxId(event,"swing");
+    this.runtimeFx.set(id,{id,object:mesh,born:now,duration:210,baseY:1,kind:"ring"});
   }
 
   private addRingFx(event: EffectEvent, now: number, scale: number, duration: number): void {
