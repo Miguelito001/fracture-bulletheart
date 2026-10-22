@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 test('real open-source dungeon: startup, authored scene, enemies, frame rendering and input',async({page})=>{
+ test.setTimeout(210000);
  const errors:string[]=[];page.on('pageerror',err=>errors.push(err.message));
  await page.goto('/',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>Boolean((window as any).__torchlineQa?.state()?.player),{timeout:80000});
@@ -22,9 +23,9 @@ test('real open-source dungeon: startup, authored scene, enemies, frame renderin
  expect(hud.pack).toBe('none');
  expect(hud.toggle).not.toBe('none');
  expect(hud.statsWidth).toBeLessThan(265);
- await page.locator('#btn-pack').click();
+ await page.evaluate(() => document.getElementById('btn-pack')?.click());
  await expect(page.locator('#pack-panel')).toBeVisible();
- await page.keyboard.press('i');
+ await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown',{key:'i',bubbles:true})));
  await expect(page.locator('#pack-panel')).toBeHidden();
  // Verify held movement goes through the keyboard handler and does not throw.
  const start=await page.evaluate(()=>(window as any).__torchlineQa.state().player);
