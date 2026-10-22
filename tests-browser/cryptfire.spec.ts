@@ -46,6 +46,18 @@ test('real open-source dungeon: startup, authored scene, enemies, frame renderin
  }
  expect(actualTravel).toBeGreaterThan(0.1);
  console.log('MOVEMENT_HUD_QA',JSON.stringify({hud,start,movementSamples,actualTravel}));
+ // The upgraded action controls execute in a REAL Chromium tab, not just in
+ // synthetic game tests. W aims the dodge; the contact direction is collision checked.
+ await page.keyboard.down('w');
+ const dodgeBefore=await page.evaluate(()=>(window as any).__torchlineQa.state().player);
+ await page.keyboard.press('Space');
+ const dodgeAfter=await page.evaluate(()=>(window as any).__torchlineQa.state().player);
+ await page.keyboard.up('w');
+ const dodgeDistance=Math.hypot(dodgeAfter.x-dodgeBefore.x,dodgeAfter.y-dodgeBefore.y);
+ expect(dodgeDistance).toBeGreaterThan(.12);
+ expect(dodgeDistance).toBeLessThan(1.72);
+ console.log('LIVE_DODGE_BROWSER_QA',JSON.stringify({dodgeBefore,dodgeAfter,dodgeDistance}));
+
  await page.screenshot({path:'qa/cryptfire-gameplay.png',fullPage:true});
  expect(errors).toEqual([]);
  console.log('CRYPTFIRE_QA',JSON.stringify({before:before.state,metrics}));
