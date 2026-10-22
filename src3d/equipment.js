@@ -20,8 +20,9 @@ export function setHandEquipment(loadout,hand,item){
   const next=id(item);
   if(item!==null&&!next)return false;
   if(hand==='hand1'&&!next)return false;
-  loadout[hand]=next;
   const other=hand==='hand1'?'hand2':'hand1';
+  if(hand==='hand2'&&next&&loadout.hand1===next)return false;
+  loadout[hand]=next;
   if(next&&loadout[other]===next)loadout[other]=null;
   return true;
 }
