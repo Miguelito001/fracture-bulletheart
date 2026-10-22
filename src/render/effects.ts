@@ -21,6 +21,16 @@ export class EffectLayer {
     }
   }
 
+  snapshot(): {active:number;beam:number;spark:number;ring:number;text:number} {
+    return {
+      active:this.effects.length,
+      beam:this.effects.filter(e=>e.type==="loot-beam").length,
+      spark:this.effects.filter(e=>e.type==="damage"||e.type==="hit").length,
+      ring:this.effects.filter(e=>e.type==="shrine"||e.type==="swing").length,
+      text:this.effects.filter(e=>e.type==="damage").length
+    };
+  }
+
   update(dt: number, paused: boolean): void {
     if (!paused) {
       for (const effect of this.effects) effect.age += dt;
