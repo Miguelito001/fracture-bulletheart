@@ -4000,8 +4000,8 @@ export class ThreeRenderer {
       if (fx.kind === "spark") fx.object.scale.setScalar(fx.baseY * (1 + t * .22));
       if (fx.kind === "ring") fx.object.scale.setScalar(fx.baseY * (0.55 + t * .40));
       if (fx.kind === "beam") {
-        const pulse = 1 + Math.sin(age * 0.025) * 0.07;
-        fx.object.scale.set(pulse, 1, pulse);
+        const pulse = 1 + Math.sin(age * 0.025) * 0.025;
+        fx.object.scale.set(0.36 * pulse, 1.5, 1);
       }
       if (fx.kind === "corpse") {
         const sprite = fx.object as THREE.Sprite;
