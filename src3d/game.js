@@ -403,6 +403,7 @@ class Fracture {
   if(name==='start')this.enterDungeon();else if(name==='attack')this.attack();else if(name==='dodge')this.startDodge();
   else if(name==='interact')this.interact();else if(name==='heal')this.heal();else if(name==='return')this.startReturn();
   else if(name==='blade'||name==='gun')this.selectWeapon(name);
+   else if(name==='inventory')this.toggleInventory();
   else if(name==='pause'){if(this.mode==='paused')this.setMode(this.worldType==='hub'?'hub':'playing');else if(this.mode==='playing')this.setMode('paused');}
  }
  syncEquippedVisuals(){
@@ -891,12 +892,13 @@ class Fracture {
   $('echoes').textContent=`${this.progress.echoes}`;
   $('materials').textContent=`FERRO ${this.materials.iron} · BRASAS ${this.materials.embers}`;
   $('stance').textContent=this.weapon==='blade'?'LÂMINA ERRANTE':'REVÓLVER DE ECOS';
+  $('offhand-label').textContent=this.equipment.hand2?'MÃO 2: '+GEAR[this.equipment.hand2].label.toUpperCase():'MÃO 2: VAZIA';
   for(const b of document.querySelectorAll('.weapon-group button')){
    const active=b.dataset.action===this.weapon;b.classList.toggle('equipped',active);
    b.setAttribute('aria-pressed',String(active));
   }
   $('roomname').textContent=this.worldType==='hub'?'CÂMARA ÂNCORA':(this.rooms[this.roomIndex]?.layout.name||'CRIPTA');
-  $('controls').textContent=this.worldType==='hub'?'WASD MOVER · E INTERAGIR · PORTAL AO CENTRO':'WASD MOVER · MOUSE MIRAR · CLIQUE ATACAR · ESPAÇO ESQUIVAR · 1/2 ARMA · H POÇÃO · E EXTRAÇÃO';
+  $('controls').textContent=this.worldType==='hub'?'WASD MOVER · E INTERAGIR · I EQUIPAMENTO · PORTAL AO CENTRO':'WASD MOVER · MOUSE MIRAR · CLIQUE ATACAR · ESPAÇO ESQUIVAR · 1/2 ARMA · I INVENTÁRIO · H POÇÃO · E EXTRAÇÃO';
   $('status').textContent=this.mode==='hub'?'REFÚGIO SEGURO':this.gates.length?'SALA SELADA':'EXPLORAÇÃO';
  }
 }
