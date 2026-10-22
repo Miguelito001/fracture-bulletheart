@@ -29,11 +29,23 @@ test('real open-source dungeon: startup, authored scene, enemies, frame renderin
  await expect(page.locator('#pack-panel')).toBeHidden();
  // Verify held movement goes through the keyboard handler and does not throw.
  const start=await page.evaluate(()=>(window as any).__torchlineQa.state().player);
- await page.keyboard.down('w');
- await page.waitForTimeout(900);
- await page.keyboard.up('w');
- const stopped=await page.evaluate(()=>(window as any).__torchlineQa.state().player);
- console.log('MOVEMENT_HUD_QA',JSON.stringify({hud,start,stopped}));
+ let actualTravel=0;
+ const movementSamples: unknown[]=[];
+ for(const key of ['w','d','s','a']){
+   await page.keyboard.down(key);
+   const position=await page.evaluate(()=>{
+     const qa=(window as any).__torchlineQa;
+     qa.advance(450);
+     return qa.state().player;
+   });
+   await page.keyboard.up(key);
+   const travel=Math.hypot(position.x-start.x,position.y-start.y);
+   actualTravel=Math.max(actualTravel,travel);
+   movementSamples.push({key,position,travel});
+   if(actualTravel>0.1)break;
+ }
+ expect(actualTravel).toBeGreaterThan(0.1);
+ console.log('MOVEMENT_HUD_QA',JSON.stringify({hud,start,movementSamples,actualTravel}));
  await page.screenshot({path:'qa/cryptfire-gameplay.png',fullPage:true});
  expect(errors).toEqual([]);
  console.log('CRYPTFIRE_QA',JSON.stringify({before:before.state,metrics}));
