@@ -3,7 +3,7 @@ import {type EffectEvent, type GameState, type MonsterState} from "../core/types
 // FRACTURE: BULLETHEART — fully 2D, pixel-perfect renderer.
 // Art: 0x72 DungeonTileset II (CC0), pinned and mirrored for repeatable builds.
 // The proven Torchline combat simulation, AI, loot, equipment and save remain intact.
-const TILE=47;
+const TILE=56;
 type InputHit={type:"monster";id:string}|{type:"world";x:number;y:number}|null;
 type Spark={x:number;y:number;life:number;max:number;color:string;amount?:number;heavy?:boolean;kind:string};
 const keys=["floor_1","floor_2","floor_3","floor_4","floor_5","floor_6","floor_7","floor_8",
@@ -92,7 +92,17 @@ export class PixelRenderer{
   const minY=Math.floor(this.cy-this.height/TILE/2)-2,maxY=Math.ceil(this.cy+this.height/TILE/2)+2;
   const x1=Math.max(room.x-2,minX),x2=Math.min(room.x+room.w+1,maxX);
   const y1=Math.max(room.y-3,minY),y2=Math.min(room.y+room.h+1,maxY);
-  // One authored chamber in the playable scene — no fake openings into void.
+  // Beyond the reachable room: the same stone material falls into darkness.
+  // This frames the chamber as part of an underground structure, not a tile
+  // box stranded inside an empty black canvas; none of it becomes walkable.
+  ctx.save();ctx.globalAlpha=.18;
+  for(let y=Math.max(minY,room.y-4);y<=Math.min(maxY,room.y+room.h+3);y++)
+   for(let x=Math.max(minX,room.x-5);x<=Math.min(maxX,room.x+room.w+4);x++){
+    if(x>=room.x&&x<room.x+room.w&&y>=room.y&&y<room.y+room.h)continue;
+    if(rand(x,y,91)%6===0)this.tile("wall_mid",x,y);
+   }
+  ctx.restore();
+  // The interior floor retains the original game's true collision topology.
   for(let y=y1;y<=y2;y++)for(let x=x1;x<=x2;x++){
    const inside=x>room.x&&x<room.x+room.w-1&&y>room.y&&y<room.y+room.h-1;
    const top=y===room.y,edge=x===room.x||x===room.x+room.w-1;
