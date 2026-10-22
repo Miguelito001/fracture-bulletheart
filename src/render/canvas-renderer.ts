@@ -1156,14 +1156,6 @@ export class CanvasRenderer {
     }
   }
 
-  private drawMaskedPlayerSprite(ctx: CanvasRenderingContext2D, p: IsoPoint, width: number, height: number): void {
-    this.drawRasterSprite(ctx, "sprite-player", p, width, height, 0.9, {
-      alpha: 1,
-      blend: "source-over",
-      filter: this.actorFilter(true)
-    });
-  }
-
   private drawRimLight(ctx: CanvasRenderingContext2D, p: IsoPoint, color: string, scale: number): void {
     ctx.save();
     ctx.globalCompositeOperation = "screen";
