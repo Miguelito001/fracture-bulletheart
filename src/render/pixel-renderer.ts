@@ -129,9 +129,10 @@ export class PixelRenderer{
  }
  private actor(a:GameState["player"]|MonsterState,now:number,hero:boolean){
   const moving=a.animation==="run";const mode=moving?"run":"idle";
+  const enemy=a as MonsterState;
   const name=hero?"knight_m":
-   a.kind==="bone-warden"?"skelet":a.kind==="ash-chanter"?"imp":
-   (a.elite?"big_demon":"goblin");
+   enemy.kind==="bone-warden"?"skelet":enemy.kind==="ash-chanter"?"imp":
+   (enemy.elite?"big_demon":"goblin");
   const frame=Math.floor(now/(moving?110:230))%4;
   const pic=name+"_"+mode+"_anim_f"+frame;
   const p=this.screen(a.x,a.y),ctx=this.context;
@@ -141,8 +142,8 @@ export class PixelRenderer{
   }else{
    ctx.fillStyle="rgba(0,0,0,.33)";ctx.beginPath();ctx.ellipse(p.x,p.y+TILE*.27,TILE*.31,TILE*.15,0,0,Math.PI*2);ctx.fill();
   }
-  const key=!hero&&a.hitFlashMs&&a.hitFlashMs>0?name+"_idle_anim_f0":pic;
-  this.img(key,a.x,a.y,a.elite?1.50:hero?1.26:1.10);
+  const key=!hero&&enemy.hitFlashMs&&enemy.hitFlashMs>0?name+"_idle_anim_f0":pic;
+  this.img(key,a.x,a.y,!hero&&enemy.elite?1.50:hero?1.26:1.10);
   if(hero){
    const portrait=statefulFacing(a.facing??0); // direction label intentionally HUD-only
    void portrait;
