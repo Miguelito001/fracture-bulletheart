@@ -4,8 +4,8 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/fetch-source-assets.mjs && vite --host 0.0.0.0",
-    "build": "node scripts/fetch-source-assets.mjs && vite build",
+    "dev": "node scripts/fetch-source-assets.mjs && node scripts/fetch-pixel-assets.mjs && vite --host 0.0.0.0",
+    "build": "node scripts/fetch-source-assets.mjs && node scripts/fetch-pixel-assets.mjs && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run src/tests",
     "lint": "eslint .",
@@ -13,7 +13,8 @@
     "generate:assets": "bun scripts/create-runtime-assets.mjs",
     "validate:assets": "bun src/assets/validate-manifest.ts",
     "assets": "node scripts/fetch-source-assets.mjs",
-    "test:browser": "playwright test -c playwright.fracture.config.ts"
+    "test:browser": "playwright test -c playwright.fracture.config.ts",
+    "assets:pixel": "node scripts/fetch-pixel-assets.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
