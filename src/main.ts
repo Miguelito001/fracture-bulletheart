@@ -8,6 +8,7 @@ import { floorOneSceneDoors } from "./scene/navigation";
 import { HudController } from "./ui/hud";
 import type { DebugState, GameAction, GameState } from "./core/types";
 import "./styles.css";
+import "./pixel.css";
 
 const SAVE_KEY = "fracture-bulletheart-cryptfire-save-v2";
 const FRAME_SAMPLE_LIMIT = 180;
