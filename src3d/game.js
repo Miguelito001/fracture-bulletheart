@@ -68,7 +68,7 @@ class Fracture {
   this.rooms=[];this.roomIndex=0;this.enemyUnits=[];this.drops=[];this.gates=[];this.statueActors=[];
   this.elapsed=0;this.hitCooldown=0;this.attackCooldown=0;this.dashCooldown=0;this.dashTime=0;this.invuln=0;
   this.cast=0;this.castOrigin=null;this.isMoving=false;this.killCount=0;this.fx=[];
-  this.solidBodies=[];this.lastFrame=0;this.lastInteraction='';this.cameraTarget=new THREE.Vector3();this.cameraOffset=new THREE.Vector3(14,18.4,16);this.cameraDeadZone=3.0;this.cameraFrozen=false;this.wallSegments=[];this.weaponKick=0;this.weaponRig=null;this.heroGun=null;this.stepTimer=0;
+  this.solidBodies=[];this.lastFrame=0;this.lastInteraction='';this.cameraTarget=new THREE.Vector3();this.cameraOffset=new THREE.Vector3(14,18.4,16);this.cameraDeadZone=3.0;this.cameraFrozen=false;this.wallSegments=[];this.wallDescriptors=[];this.wallBatches=[];this.wallVisibilityKey=null;this.weaponKick=0;this.weaponRig=null;this.heroGun=null;this.stepTimer=0;
   this.errors=[];this.gameStarted=false;this.testMarker={engine:'Three.js',physics:'Rapier',rendering:'3D',assets:0,roomCount:0};
   this.lightGeometry=new THREE.SphereGeometry(.15,9,8);
   this.renderer.domElement.addEventListener('pointermove',e=>this.movePointer(e));
@@ -184,6 +184,40 @@ class Fracture {
    });
   }
  }
+ makeInstancedWalls(){
+  // A small number of InstancedMesh calls instead of dozens of GLB groups.
+  const types=new Map();
+  for(const wall of this.wallDescriptors){
+   const key=wall.name+(wall.vertical?'V':'H');
+   if(!types.has(key))types.set(key,[]);
+   types.get(key).push(wall);
+  }
+  this.wallBatches=[];this.instancedWallCount=0;
+  for(const entries of types.values()){
+   const source=this.assets.get(entries[0].name);if(!source)continue;
+   const proto=source.clone(true);
+   proto.rotation.y=entries[0].vertical?Math.PI/2:0;proto.updateMatrixWorld(true);
+   const bbox=new THREE.Box3().setFromObject(proto),size=bbox.getSize(new THREE.Vector3());
+   proto.scale.multiplyScalar(TILE*1.035/Math.max(.001,size.x,size.z));proto.updateMatrixWorld(true);
+   const scaled=new THREE.Box3().setFromObject(proto),centre=scaled.getCenter(new THREE.Vector3());
+   proto.position.set(-centre.x,-scaled.min.y,-centre.z);proto.updateMatrixWorld(true);
+   proto.traverse(part=>{
+    if(!part.isMesh||!part.geometry)return;
+    const mesh=new THREE.InstancedMesh(part.geometry,part.material,entries.length);
+    mesh.frustumCulled=false;mesh.castShadow=false;mesh.receiveShadow=false;
+    const originals=[],mat=new THREE.Matrix4(),placement=new THREE.Matrix4();
+    for(let i=0;i<entries.length;i++){
+     placement.makeTranslation(entries[i].x,0,entries[i].z);
+     mat.multiplyMatrices(placement,part.matrixWorld);
+     originals.push(mat.clone());mesh.setMatrixAt(i,mat);
+    }
+    mesh.instanceMatrix.needsUpdate=true;this.worldGroup.add(mesh);
+    this.wallBatches.push({mesh,entries,originals,hidden:entries.map(()=>false)});
+    this.instancedWallCount+=entries.length;
+   });
+  }
+  this.wallVisibilityKey=null;
+ }
  makeTerrain(worldRooms){
   const floorMaterial=mat(0x636e7b,{roughness:.93});
   // Shared instanced flagstone seams make room geometry readable without adding
@@ -200,6 +234,7 @@ class Fracture {
   };
   this.worldGroup.add(allSeams);
   this.makeInstancedFloors(worldRooms);
+  this.wallDescriptors=[];
   for(const room of worldRooms){
    const {layout,index}=room,theme=PALETTE[layout.theme]||PALETTE.crypt;
    const ox=index*(WIDTH+5)*TILE;
@@ -231,11 +266,8 @@ class Fracture {
       const ex=wx+dx*TILE*.5,ez=wz+dz*TILE*.5;
       const vertical=dx!==0;
       const modelName=(x*3+z*7+index)%13===0?'kd-wall-cracked':(x*7+z*5+index)%23===0?'kd-wall-broken':'kd-wall';
-      const wall=this.meshModel(modelName,ex,ez,TILE*1.035,{rotation:vertical?Math.PI/2:0});
-      if(wall){
-       wall.userData.isWall=true;wall.userData.baseX=ex;wall.userData.baseZ=ez;
-       this.wallSegments.push(wall);
-      }
+      this.wallDescriptors.push({name:modelName,x:ex,z:ez,vertical});
+      this.wallSegments.push({userData:{baseX:ex,baseZ:ez}});
       this.solid(ex,1.10,ez,vertical?.20:TILE*.51,1.10,vertical?TILE*.51:.20);
      }
     }
@@ -252,6 +284,7 @@ class Fracture {
    if(index%2===0)this.addLight(ox+3*TILE,3*TILE,theme.glow,3.5);
    this.addLight(ox+(WIDTH-4)*TILE,9*TILE,theme.glow,2.8);
   }
+  this.makeInstancedWalls();
   allSeams.instanceMatrix.needsUpdate=true;
   if(worldRooms.length>1)for(let i=0;i<worldRooms.length-1;i++){
    const x0=worldX(i,WIDTH-1),x1=worldX(i+1,0);
@@ -274,7 +307,7 @@ class Fracture {
     // Imported geometries stay cached, so avoid disposing shared glTF geometry.
    }});}
   if(this.actorGroup){this.scene.remove(this.actorGroup);}this.actorGroup=new THREE.Group();this.scene.add(this.actorGroup);this.heroMixer=null;this.heroAnimations={};
-  this.worldGroup=new THREE.Group();this.scene.add(this.worldGroup);this.lights=[];this.gates=[];this.drops=[];this.enemyUnits=[];this.statueActors=[];this.wallSegments=[];
+  this.worldGroup=new THREE.Group();this.scene.add(this.worldGroup);this.lights=[];this.gates=[];this.drops=[];this.enemyUnits=[];this.statueActors=[];this.wallSegments=[];this.wallDescriptors=[];this.wallBatches=[];this.wallVisibilityKey=null;
   if(this.feedback)this.feedback.dispose();
   this.feedback=new CombatFeedback(this.camera,this.worldGroup);this.velocity.set(0,0,0);this.dashVector.set(0,0,0);this.attackPose=0;
   this.setupPhysics();
@@ -736,15 +769,21 @@ class Fracture {
   this.camera.position.copy(this.cameraTarget).add(this.cameraOffset);
   this.camera.lookAt(this.cameraTarget);
   this.sun.position.set(p.x-13,23,p.z+17);this.sun.target.position.set(p.x,0,p.z);this.sun.target.updateMatrixWorld();
-  // Occluding wall façades fade, while the physical colliders remain solid.
-  for(const obj of this.wallSegments){
-   const dx=obj.userData.baseX-p.x,dz=obj.userData.baseZ-p.z;
-   const obscure=dx>0&&dz>0&&dx<5.2&&dz<5.2;
-   obj.traverse(mesh=>{if(!mesh.isMesh)return;
-    if(!mesh.userData.uniqueOpacity){mesh.material=mesh.material.clone();mesh.material.transparent=true;mesh.userData.uniqueOpacity=true;}
-    mesh.material.opacity+=((obscure?.27:1)-mesh.material.opacity)*CLAMP(dt*9,0,1);
-    mesh.material.depthWrite=!obscure;
-   });
+  const visibilityCell=Math.round(p.x/TILE)+','+Math.round(p.z/TILE);
+  if(visibilityCell!==this.wallVisibilityKey){
+   this.wallVisibilityKey=visibilityCell;
+   const hiddenMatrix=new THREE.Matrix4().makeScale(0,0,0);
+   for(const group of this.wallBatches){
+    let updated=false;
+    for(let i=0;i<group.entries.length;i++){
+     const wall=group.entries[i],dx=wall.x-p.x,dz=wall.z-p.z;
+     const hide=dx>0&&dz>0&&dx<5.4&&dz<5.4;
+     if(hide===group.hidden[i])continue;
+     group.hidden[i]=hide;
+     group.mesh.setMatrixAt(i,hide?hiddenMatrix:group.originals[i]);updated=true;
+    }
+    if(updated)group.mesh.instanceMatrix.needsUpdate=true;
+   }
   }
  }
  frame(){this.renderedFrames=(this.renderedFrames||0)+1;let dt=CLAMP(this.clock.getDelta(),0,1/30);
