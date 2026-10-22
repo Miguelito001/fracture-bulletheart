@@ -1,7 +1,7 @@
 name: FRACTURE Cryptfire — complete game QA
 on:
   push:
-    branches: [feature/fracture-torchlit-rebuild]
+    branches: [feature/fracture-torchlit-rebuild, feature/pixel-dungeon-rebuild]
   workflow_dispatch:
 permissions:
   contents: read
