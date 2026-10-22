@@ -3,12 +3,12 @@ import type { GameAction } from "../core/types";
 type KeyboardPlayer = { x: number; y: number; };
 export type MovementController = { tick: (now: number) => void; isMoving: () => boolean; dispose: () => void; };
 const bindings: Record<string, [number, number]> = {
-  w: [-1, -1], arrowup: [-1, -1],
-  s: [1, 1], arrowdown: [1, 1],
-  a: [-1, 1], arrowleft: [-1, 1],
-  d: [1, -1], arrowright: [1, -1]
+  w: [0, -1], arrowup: [0, -1],
+  s: [0, 1], arrowdown: [0, 1],
+  a: [-1, 0], arrowleft: [-1, 0],
+  d: [1, 0], arrowright: [1, 0]
 };
-// Perspective-locked controls: W moves visibly UP, D moves RIGHT.
+// True top-down axes: W north, D east; diagonal movement normalized.
 // Original Dungeon Torch Crawler used a single 1.35-unit move on keyDown;
 // OS key-repeat created choppy, unpredictable movement.
 export function movementVector(keys: ReadonlySet<string>): { x: number; y: number } {
