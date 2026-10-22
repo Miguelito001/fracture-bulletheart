@@ -619,15 +619,42 @@ class Fracture {
   }
  }
  updateVisuals(dt){const p=this.playerBody.translation();
-  if(this.heroPivot){this.heroPivot.position.set(p.x,0,p.z);
-   const animation=this.attackCooldown>.14?(this.lastAttack==='gun'?'shoot':'attack'):this.dashTime>0?'run':this.isMoving?'run':'idle';
-   if(animation!==this.heroAnimationState){this.playMotion(this.heroAnimations,this.heroAnimationState,animation);this.heroAnimationState=animation;}
-   this.weaponKick=Math.max(0,this.weaponKick-dt*5.6);
-    if(this.weaponRig){
-      this.weaponRig.position.z=this.weapon==='gun'?-this.weaponKick*.12:0;
-      this.weaponRig.rotation.z=this.weapon==='gun'?-this.weaponKick*.22:Math.sin((1-this.weaponKick)*Math.PI)*this.weaponKick*.75;
-    }
-    this.heroMixer?.update(dt);
+  if(this.heroPivot){
+   this.heroPivot.position.set(p.x,0,p.z);
+   // Action time is a dedicated state, not an incidental attack-cooldown
+   // threshold. This keeps the KayKit clip visible for the full strike.
+   this.attackPose=Math.max(0,this.attackPose-dt);
+   const active=this.attackPose>0;
+   const animation=active?(this.lastAttack==='gun'?'shoot':'attack'):
+     this.dashTime>0&&this.heroAnimations?.dodge?'dodge':this.isMoving?'run':'idle';
+   if(animation!==this.heroAnimationState){
+    this.playMotion(this.heroAnimations,this.heroAnimationState,animation);
+    this.heroAnimationState=animation;
+   }
+   if(this.heroAnimations?.run?.isRunning()){
+    this.heroAnimations.run.timeScale=Math.max(.75,Math.min(1.6,this.velocity.length()/5.4));
+   }
+   this.heroMixer?.update(dt);
+   // Even if the loaded pack lacks a compatible one-handed clip, both attacks
+   // visibly move the character's upper body and its *actual* weapon mesh.
+   // This is independent of camera, physics position and hitbox.
+   const u=active?1-this.attackPose/Math.max(.001,this.attackPoseLength):1;
+   const swing=active?Math.sin(u*Math.PI):0;
+   if(this.hero){
+    this.hero.rotation.z=THREE.MathUtils.damp(this.hero.rotation.z,active?
+      (this.lastAttack==='gun'?-swing*.075:-swing*.19):0,27,dt);
+    this.hero.rotation.x=THREE.MathUtils.damp(this.hero.rotation.x,active?
+      (this.lastAttack==='gun'?swing*.17:-swing*.14):0,22,dt);
+   }
+   this.weaponKick=Math.max(0,this.weaponKick-dt*4.7);
+   if(this.weaponRig){
+    const sword=active&&this.lastAttack==='blade';
+    const shot=active&&this.lastAttack==='gun';
+    this.weaponRig.rotation.z=THREE.MathUtils.damp(this.weaponRig.rotation.z,
+      sword?-.95+u*1.85:shot?-.34*swing:0,29,dt);
+    this.weaponRig.rotation.x=THREE.MathUtils.damp(this.weaponRig.rotation.x,sword?.40*swing:shot?-.26*swing:0,25,dt);
+    this.weaponRig.position.z=shot?-.16*swing:0;
+   }
   }
   for(const e of this.enemyUnits){const t=e.body.translation();e.x=t.x;e.z=t.z;e.visual.position.set(t.x,0,t.z);
    const animation=e.stagger>0?'hit':e.windup>0?'attack':e.path?.length?'run':'idle';
@@ -673,6 +700,7 @@ class Fracture {
    this.physics.timestep=dt;this.physics.step();this.updateVisuals(dt);
    this.updateHUD();
   }
+  this.feedback?.update(dt);
   this.renderer.render(this.scene,this.camera);
   requestAnimationFrame(()=>this.frame());
  }
