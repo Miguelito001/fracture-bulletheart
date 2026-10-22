@@ -207,6 +207,7 @@ export function calculatePlayerStats(state: GameState): StatBlock {
 
 export class TorchlineGame {
   state: GameState;
+  private directInput: Point = { x: 0, y: 0 };
 
   constructor(seed = DEFAULT_SEED) {
     resetItemIds();
@@ -234,11 +235,31 @@ export class TorchlineGame {
   }
 
   loadSave(save: SaveGame): void {
+    this.directInput = { x: 0, y: 0 };
     this.state = stateFromSave(save, this.createState(save.seed));
     this.state.player = this.preparePlayer(this.state.player);
     this.pushMessage("Loaded the saved torchline.", "load-confirm", "load");
     const playerTile = tilePoint(this.state.player);
     computeFov(this.state.dungeon, playerTile.x, playerTile.y, calculatePlayerStats(this.state).torchRadius);
+  }
+
+  // WASD uses actual frame-by-frame collision-resolved steering.
+  // Mouse click-to-move continues to use the upstream navigation/pathfinding.
+  setDirectInput(dx: number, dy: number): void {
+    const length = Math.hypot(dx, dy);
+    const next = this.state.mode === "playing" && length > 0
+      ? { x: dx / length, y: dy / length }
+      : { x: 0, y: 0 };
+    const starting = length > 0 && this.directInput.x === 0 && this.directInput.y === 0;
+    if (next.x || next.y) {
+      if (starting) this.state.turn += 1;
+      this.state.player.targetActorId = null;
+      this.state.player.moveTarget = null;
+      this.state.player.movePath = [];
+    } else if (this.directInput.x || this.directInput.y) {
+      this.setActorAnimation(this.state.player, "idle");
+    }
+    this.directInput = next;
   }
 
   dispatch(action: GameAction, record = true): void {
@@ -797,6 +818,12 @@ export class TorchlineGame {
 
   private updatePlayerRealtime(dt: number): void {
     const player = this.state.player;
+    if (this.directInput.x || this.directInput.y) {
+      const target = { x: player.x + this.directInput.x, y: player.y + this.directInput.y };
+      const moved = this.moveEntityToward(player, target, PLAYER_SPEED, dt, 0.28);
+      this.setActorAnimation(player, moved ? "run" : "idle");
+      return;
+    }
     const target = player.targetActorId ? this.monstersById(player.targetActorId) : undefined;
     if (target) {
       player.facing = angleTo(player, target);
