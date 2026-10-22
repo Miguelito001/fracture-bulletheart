@@ -269,6 +269,10 @@ export class ThreeRenderer {
   private qualityScale = 1;
   private slowRenderStreak = 0;
   private softwareRenderer = false;
+  private cameraFocus = new THREE.Vector3();
+  private cameraInitialized = false;
+  private readonly followOffset = new THREE.Vector3();
+  private lastCameraSample = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -295,6 +299,9 @@ export class ThreeRenderer {
     this.camera = new THREE.PerspectiveCamera(cameraSpec.fov, 1, cameraSpec.near, cameraSpec.far);
     this.cameraBase.fromArray(cameraSpec.position);
     this.cameraTarget.fromArray(cameraSpec.target);
+    // A stable fixed-angle close ARPG camera. Following translates the
+    // perspective; there is no rotation, zoom pulsing, or impact shake.
+    this.followOffset.copy(this.cameraBase).sub(this.cameraTarget).multiplyScalar(0.70);
     this.camera.position.copy(this.cameraBase);
     this.camera.lookAt(this.cameraTarget);
 
@@ -360,7 +367,7 @@ export class ThreeRenderer {
     this.syncDynamicWorld(state, visualNow);
     this.syncDebugWorld(state);
     this.updateEffects(visualNow);
-    this.syncCameraShake(visualNow);
+    this.followPlayer(state, now);
     this.renderer.render(this.scene, this.camera);
     state.debug.renderMs = Math.round((performance.now() - started) * 10) / 10;
     // Adaptive resolution only when sustained slow frames are observed.
@@ -419,6 +426,7 @@ export class ThreeRenderer {
     this.pendingGroundGlowDecals.length = 0;
     this.pendingGroundRects.length = 0;
     this.origin = room ? { x: room.cx, y: room.cy } : { x: state.player.x, y: state.player.y };
+    this.cameraInitialized = false;
 
     this.buildFloor(state);
     this.buildWalls();
@@ -4008,25 +4016,21 @@ export class ThreeRenderer {
     this.cameraShakeUntil = Math.max(this.cameraShakeUntil, now + duration);
   }
 
-  private syncCameraShake(now: number): void {
-    if (now >= this.cameraShakeUntil) {
-      this.camera.position.copy(this.cameraBase);
-      this.camera.lookAt(this.cameraTarget);
-      this.cameraShakeStrength = 0;
-      this.cameraShakeDuration = 1;
-      return;
+  private followPlayer(state: GameState, now: number): void {
+    const point = this.toWorld(state.player);
+    const wanted = new THREE.Vector3(point.x, 0.65, point.z);
+    if (!this.cameraInitialized) {
+      this.cameraFocus.copy(wanted);
+      this.cameraInitialized = true;
+    } else {
+      const dt = Math.min(0.09, Math.max(0, (now - this.lastCameraSample) / 1000));
+      // Stable 0.35-second catch-up, fixed viewing angle; no shake.
+      const alpha = 1 - Math.exp(-7 * dt);
+      this.cameraFocus.lerp(wanted, alpha);
     }
-
-    const remaining = this.cameraShakeUntil - now;
-    const falloff = clamp(remaining / this.cameraShakeDuration, 0, 1);
-    const strength = this.cameraShakeStrength * falloff;
-    const offset = new THREE.Vector3(
-      Math.sin(now * 0.071) * strength,
-      Math.cos(now * 0.083) * strength * 0.45,
-      Math.sin(now * 0.063 + 1.7) * strength
-    );
-    this.camera.position.copy(this.cameraBase).add(offset);
-    this.camera.lookAt(this.cameraTarget);
+    this.lastCameraSample = now;
+    this.camera.position.copy(this.cameraFocus).add(this.followOffset);
+    this.camera.lookAt(this.cameraFocus);
   }
 
   private setObjectOpacity(object: THREE.Object3D, opacity: number): void {
