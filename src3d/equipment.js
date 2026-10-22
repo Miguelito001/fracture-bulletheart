@@ -26,7 +26,7 @@ export function setHandEquipment(loadout,hand,item){
   if(next&&loadout[other]===next)loadout[other]=null;
   return true;
 }
-const BUILT_IN=/(?:^|[._\\s-])(?:shield|sword|blade|weapon|axe|mace|dagger|crossbow|bow|quiver|staff|hammer|scabbard)(?:$|[._\\s-]|\\d)/i;
+const BUILT_IN=/(?:^|[._ -])(?:shield|sword|blade|weapon|axe|mace|dagger|crossbow|bow|quiver|staff|hammer|scabbard)(?:$|[._ -]|[0-9])/i;
 export function hideEmbeddedEquipment(root){
   const hidden=[];
   root.traverse(node=>{
