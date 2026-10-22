@@ -8,13 +8,16 @@ export class CombatFeedback{
   this.root.setAttribute('aria-hidden','true');document.body.appendChild(this.root);
   this.crosshair=document.createElement('div');this.crosshair.className='fracture-hitmarker';
   this.crosshair.textContent='✕';this.root.appendChild(this.crosshair);
-  this.hitmarkerTime=0;this.hits=0;
+  this.hitmarkerTime=0;this.hits=0;this.sparkGeometry=new THREE.SphereGeometry(.07,5,4);
  }
  hit(enemy,damage,critical=false){
   const text=document.createElement('div');text.className='fracture-damage'+(critical?' fracture-critical':'');
   text.textContent=(critical?'✦ ':'')+Math.round(damage);
   this.root.appendChild(text);
   this.labels.push({node:text,world:new THREE.Vector3(enemy.x,enemy.kind==='warden'?2.5:1.9,enemy.z),life:.7,max:.7});
+  const aimTarget=new THREE.Vector3(enemy.x,1.15,enemy.z).project(this.camera);
+  this.crosshair.style.left=((aimTarget.x+1)*.5*innerWidth)+'px';
+  this.crosshair.style.top=((1-aimTarget.y)*.5*innerHeight)+'px';
   this.crosshair.classList.remove('active');void this.crosshair.offsetWidth;this.crosshair.classList.add('active');
   this.hitmarkerTime=.17;this.hits++;
   this.flash(enemy);
@@ -41,7 +44,7 @@ export class CombatFeedback{
   if(meshes.length)this.flashes.set(enemy,{meshes,timer:.12});
  }
  sparks(x,z,critical){
-  const count=critical?11:7,geo=new THREE.SphereGeometry(.07,5,4);
+  const count=critical?11:7,geo=this.sparkGeometry;
   for(let i=0;i<count;i++){
    const a=i/count*Math.PI*2,r=.55+((i*7)%6)*.07;
    const mat=new THREE.MeshBasicMaterial({color:critical?0xffd18c:0xffa47e,transparent:true,opacity:.95,depthWrite:false});
@@ -82,6 +85,6 @@ export class CombatFeedback{
   for(const v of this.flashes.values())for(const original of v.meshes){
    original.mat.emissive.copy(original.emissive);original.mat.emissiveIntensity=original.intensity;
   }
-  this.root.remove();this.labels=[];this.particles=[];this.flashes.clear();
+  this.root.remove();this.sparkGeometry.dispose();this.labels=[];this.particles=[];this.flashes.clear();
  }
 }
