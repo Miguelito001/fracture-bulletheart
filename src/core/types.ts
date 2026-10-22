@@ -124,6 +124,8 @@ export type PlayerState = Point & {
   attackCooldownMs?: number;
   abilityCooldownMs?: number;
   footstepCooldownMs?: number;
+  dodgeCooldownMs?: number;
+  dodgeInvulnMs?: number;
 };
 
 export type MonsterDefinition = {
@@ -315,6 +317,7 @@ export type GameAction =
   | { type: "moveTo"; x: number; y: number }
   | { type: "targetActor"; id: string }
   | { type: "basicAttack" }
+  | { type: "dodge" }
   | { type: "useAbility" }
   | { type: "interactAt"; x: number; y: number }
   | { type: "wait" }
