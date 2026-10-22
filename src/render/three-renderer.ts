@@ -3123,47 +3123,27 @@ export class ThreeRenderer {
       this.syncShadow(key, point, 0.36, 0.17, 0.28);
       liveKeys.add(key);
 
-      this.syncGroundGlow(
-        `${key}:pickup-pool`,
-        point,
-        (item.kind === "gold" ? 1.05 : item.kind === "potion" ? 0.88 : rarityGlow ? 1.75 : 1.18) * pickupPulse,
-        item.kind === "gold" ? 0.48 : item.kind === "potion" ? 0.42 : rarityGlow ? 0.76 : 0.52,
-        itemColor,
-        item.kind === "gold" ? 0.18 : item.kind === "potion" ? 0.14 : rarityGlow ? 0.24 : 0.13,
-        -0.18
+      // Common drops have a readable sprite and shadow already. A glowing
+      // floor disc on EVERY drop multiplies into an unreadable white carpet.
+      if (rarityGlow) this.syncGroundGlow(
+        `${key}:pickup-pool`,point,
+        (relicGlow ? 1.08 : 0.88) * pickupPulse,
+        0.40,itemColor,relicGlow ? 0.07 : 0.045,-0.18
       );
 
       if (rarityGlow) {
         const glow = this.syncGlow(
-          `${key}:glow`,
-          point,
-          relicGlow ? 1.8 + Math.sin(now / 190) * 0.08 : 1.38 + Math.sin(now / 210) * 0.06,
-          itemColor,
-          relicGlow ? 0.42 : 0.34
+          `${key}:glow`,point,relicGlow ? 1.0 : 0.8,
+          itemColor,relicGlow ? 0.12 : 0.075
         );
         glow.position.y = 0.04;
         liveKeys.add(`${key}:glow`);
-        this.syncGroundGlow(
-          `${key}:pool`,
-          point,
-          relicGlow ? 2.18 : 1.78,
-          relicGlow ? 0.98 : 0.78,
-          itemColor,
-          relicGlow ? 0.3 : 0.21,
-          -0.18
-        );
         this.syncLootBeam(
-          `${key}:beam`,
-          point,
-          relicGlow ? 5.2 : 4.15,
-          relicGlow ? 0.082 : 0.058,
-          itemColor,
-          relicGlow ? 0.54 : 0.39
+          `${key}:beam`,point,
+          relicGlow ? 1.85 : 1.35,0.025,itemColor,
+          relicGlow ? 0.16 : 0.09
         );
         liveBeamKeys.add(`${key}:beam`);
-      } else if (item.kind === "gold") {
-        this.syncLootBeam(`${key}:coin-column`, point, 2.85, 0.032, itemColor, 0.18);
-        liveBeamKeys.add(`${key}:coin-column`);
       }
     }
 
@@ -3191,7 +3171,7 @@ export class ThreeRenderer {
           0.24 + Math.sin(now / 260) * 0.035,
           -0.1
         );
-        this.syncLootBeam(`${key}:column`, shrine, 3.6, 0.046, shrineColor, 0.28);
+        this.syncLootBeam(`${key}:column`, shrine, 1.65, 0.025, shrineColor, 0.11);
         liveBeamKeys.add(`${key}:column`);
       }
     }
@@ -3710,7 +3690,7 @@ export class ThreeRenderer {
       width,
       depth,
       rotation,
-      color: new THREE.Color(color).multiplyScalar(clamp(opacity, 0, 1)),
+      color: new THREE.Color(color).multiplyScalar(clamp(opacity * .55, 0, .13)),
       opacity: 1
     });
   }
