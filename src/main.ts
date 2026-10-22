@@ -308,7 +308,7 @@ const hud = new HudController({
   replay: () => game.replayFromStart()
 });
 
-bindKeyboard(dispatch, () => game.state.player);
+const movement = bindKeyboard(dispatch, () => game.state.player, () => game.state.mode === 'playing' && !document.getElementById('hud')?.classList.contains('pack-open'));
 
 let audioUnlockStarted = false;
 async function unlockAudio(): Promise<void> {
@@ -322,11 +322,21 @@ window.addEventListener("pointerdown", () => void unlockAudio(), { once: true })
 window.addEventListener("keydown", () => void unlockAudio(), { once: true });
 
 canvas.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
   void unlockAudio();
   const hit = renderer.getInputHit(event.clientX, event.clientY, game.state);
   if (!hit) return;
   if (hit.type === "monster") dispatch({ type: "targetActor", id: hit.id });
   else dispatch({ type: "interactAt", x: hit.x, y: hit.y });
+});
+
+canvas.addEventListener('contextmenu', event => event.preventDefault());
+canvas.addEventListener('pointerdown', event => {
+  if (event.button === 2 && game.state.mode === 'playing') {
+    event.preventDefault();
+    void unlockAudio();
+    dispatch({type:'basicAttack'});
+  }
 });
 
 loadAtlas(atlasManifest)
@@ -371,6 +381,7 @@ function frame(now: number): void {
   const dt = Math.min(50, rawDt);
   last = now;
   frameStats.record(rawDt, now, game.state.debug);
+  movement.tick(now);
   game.tickFrame(dt);
   const events = game.drainEffects();
   for (const event of events) mixer.play(event.audio);
@@ -387,6 +398,7 @@ if (hot) {
   hot.dispose(() => {
     frameLoopActive = false;
     cancelAnimationFrame(frameRequestId);
+    movement.dispose();
     renderer.dispose();
   });
 }
