@@ -92,3 +92,24 @@ button{font-family:system-ui!important;letter-spacing:0!important}
 [data-frame="loot-charm"]::before{background:url("/pixel/flask_blue.png") center/contain no-repeat!important}
 .modal-card,.pause-card,.death-card,.choice{background:linear-gradient(135deg,#152636,#0a1824)!important;
  border:1px solid #52757a!important;color:#d9e8df!important;border-radius:8px!important}
+
+/* Action bar reads as a real pixel-game HUD, never text cropped into buttons. */
+.hotbar button{color:transparent!important;font-size:0!important;width:58px!important;min-width:58px!important}
+.hotbar button::before{content:""!important;display:block!important;position:absolute!important;
+ top:5px!important;left:50%!important;transform:translateX(-50%)!important;
+ width:28px!important;height:27px!important;border:0!important;
+ background:transparent center / contain no-repeat!important;image-rendering:pixelated!important}
+.hotbar button::after{content:attr(data-key)!important;display:block!important;
+ position:absolute!important;bottom:4px!important;left:0!important;right:0!important;
+ color:#b7ebdb!important;font:bold 9px/1 system-ui!important;text-align:center!important}
+#btn-potion::before{background-image:url("/pixel/flask_red.png")!important}
+#btn-wait::before{background-image:url("/pixel/weapon_knight_sword.png")!important}
+#btn-shrine::before{background-image:url("/pixel/flask_blue.png")!important}
+#btn-stairs::before{background-image:url("/pixel/floor_stairs.png")!important}
+#btn-save::before{background-image:url("/pixel/chest_full_open_anim_f0.png")!important}
+#btn-load::before{background-image:url("/pixel/coin_anim_f0.png")!important}
+#btn-pause::before{background-image:url("/pixel/skull.png")!important}
+#btn-debug::before{background-image:url("/pixel/column.png")!important}
+@media(max-width:650px){.hotbar button{width:39px!important;min-width:39px!important}
+ .hotbar button::before{width:23px!important;height:23px!important}
+ .hotbar button::after{font-size:8px!important}}
