@@ -29,8 +29,9 @@ test('the source model hides original starter weapons, not the body',()=>{
 });
 test('right and left KayKit hand bones can be selected independently',()=>{
  const left={name:'Hand.L',isBone:true},right={name:'Hand.R',isBone:true};
- const rig={traverse(cb){[left,right,{name:'UpperArm.R',isBone:true}].forEach(cb);}};
+ const leftSocket={name:'handslot.l',isBone:false},rightSocket={name:'handslot.r',isBone:false};
+ const rig={traverse(cb){[left,right,leftSocket,rightSocket,{name:'UpperArm.R',isBone:true}].forEach(cb);}};
  const result=findHandBones(rig);
- assert.equal(result.hand1,right);
- assert.equal(result.hand2,left);
+ assert.equal(result.hand1,rightSocket);
+ assert.equal(result.hand2,leftSocket);
 });
