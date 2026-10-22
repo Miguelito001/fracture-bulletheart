@@ -5,7 +5,7 @@ import { AudioMixer } from "./audio/mixer";
 import { TorchlineGame } from "./core/game";
 import { serializeState } from "./core/persistence";
 import { bindKeyboard } from "./input/input";
-import { ThreeRenderer } from "./render/three-renderer";
+import { CanvasRenderer } from "./render/canvas-renderer";
 import { floorOneSceneDoors } from "./scene/navigation";
 import { HudController } from "./ui/hud";
 import type { DebugState, EffectEvent, GameAction, GameState } from "./core/types";
@@ -39,6 +39,7 @@ type QaMetrics = Pick<
 
 type TorchlineQa = {
   version: "torchline-qa-v1";
+  renderer: "canvas2d";
   metrics: () => QaMetrics;
   resetMetrics: () => void;
   state: () => {
@@ -142,7 +143,7 @@ const canvas = document.getElementById("game-canvas") as HTMLCanvasElement | nul
 if (!canvas) throw new Error("Missing game canvas.");
 
 const game = new TorchlineGame();
-const renderer = new ThreeRenderer(canvas);
+const renderer = new CanvasRenderer(canvas);
 const mixer = new AudioMixer(audioManifest);
 const frameStats = new FrameStats();
 let hudDirty = true;
@@ -265,6 +266,7 @@ function currentQaMetrics(): QaMetrics {
 
 window.__torchlineQa = {
   version: "torchline-qa-v1",
+  renderer: "canvas2d",
   metrics: currentQaMetrics,
   resetMetrics: () => frameStats.reset(game.state.debug),
   state: () => ({
