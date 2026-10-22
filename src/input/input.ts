@@ -37,6 +37,11 @@ export function bindKeyboard(
     if (bindings[key]) {
       event.preventDefault();
       keys.add(key);
+      // Input is registered immediately, even before the next slow GPU frame.
+      if (onDirectInput && canMove()) {
+        const direction = movementVector(keys);
+        onDirectInput(direction.x, direction.y);
+      }
       return;
     }
     // Browser auto-repeat must never trigger five attacks per held key.
