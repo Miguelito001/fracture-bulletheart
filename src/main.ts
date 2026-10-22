@@ -1,11 +1,9 @@
-import { atlasManifest } from "./assets/manifest";
-import { loadAtlas } from "./assets/asset-loader";
 import { audioManifest } from "./audio/manifest";
 import { AudioMixer } from "./audio/mixer";
 import { TorchlineGame } from "./core/game";
 import { serializeState } from "./core/persistence";
 import { bindKeyboard } from "./input/input";
-import { ThreeRenderer } from "./render/three-renderer";
+import { PixelRenderer } from "./render/pixel-renderer";
 import { floorOneSceneDoors } from "./scene/navigation";
 import { HudController } from "./ui/hud";
 import type { DebugState, GameAction, GameState } from "./core/types";
@@ -141,7 +139,7 @@ const canvas = document.getElementById("game-canvas") as HTMLCanvasElement | nul
 if (!canvas) throw new Error("Missing game canvas.");
 
 const game = new TorchlineGame();
-const renderer = new ThreeRenderer(canvas);
+const renderer = new PixelRenderer(canvas);
 const mixer = new AudioMixer(audioManifest);
 const frameStats = new FrameStats();
 let hudDirty = true;
@@ -339,16 +337,7 @@ canvas.addEventListener('pointerdown', event => {
   }
 });
 
-loadAtlas(atlasManifest)
-  .then((atlas) => {
-    renderer.loadAssets(atlas);
-    for (const path of atlas.missing) game.markMissingAsset(path);
-    if (atlas.missing.length) markHudDirty("missing-assets");
-  })
-  .catch((error) => {
-    game.notify(`Asset load failed: ${error instanceof Error ? error.message : String(error)}`);
-    markHudDirty("asset-error");
-  });
+// Sprite frames load from the pinned, locally hosted CC0 pixel pack.
 
 let last = performance.now();
 let frameRequestId = 0;
