@@ -1,0 +1,43 @@
+name: FRACTURE 2D — public GitHub Pages
+on:
+  push:
+    branches: [feature/fracture-canvas2d]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: fracture-canvas-pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install game
+        run: npm install --no-audit --no-fund
+      - name: Download pinned open-source game assets
+        run: npm run assets
+      - name: Verify combat and progression
+        run: npm test
+      - name: Check TypeScript
+        run: npm run typecheck
+      - name: Build browser playable 2D game
+        env:
+          GITHUB_PAGES_BUILD: 'true'
+        run: npm run build
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
