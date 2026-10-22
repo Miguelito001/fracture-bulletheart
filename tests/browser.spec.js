@@ -58,8 +58,9 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  expect(blade).toMatchObject({weapon:'blade',gun:false,sword:true});
  // Verify keyboard traversal is actually camera-relative in live Rapier physics.
  const walkStart=await page.evaluate(()=>window.__FRACTURE3D__.playerBody.translation());
+ const framesBefore=await page.evaluate(()=>window.__FRACTURE3D__.renderedFrames);
  await page.keyboard.down('w');
- await page.waitForTimeout(320);
+ await page.waitForTimeout(2000);
  const liveMovement=await page.evaluate(()=>{
    const g=window.__FRACTURE3D__,p=g.playerBody.translation(),basis=g.cameraOffset;
    const wanted={x:-basis.x*.01,y:0,z:-basis.z*.01};
@@ -69,7 +70,7 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
      wanted,computed:g.charController.computedMovement(),
      isMoving:g.isMoving,blocked:g.wasBlocked,room:g.rooms[0].layout.rows[Math.round(p.z/2.35)]?.[Math.round(p.x/2.35)]};
  });
- console.log('MOVEMENT_DIAGNOSTIC',JSON.stringify(liveMovement));
+ console.log('MOVEMENT_DIAGNOSTIC',JSON.stringify({...liveMovement,framesBefore,pageErrors:errors}));
  await page.keyboard.up('w');
  const walkEnd=await page.evaluate(()=>window.__FRACTURE3D__.playerBody.translation());
  const cameraBasis=await page.evaluate(()=>window.__FRACTURE3D__.cameraOffset.toArray());
