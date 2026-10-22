@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {PNG} from 'pngjs';
 test('real open-source dungeon: startup, authored scene, enemies, frame rendering and input',async({page})=>{
  test.setTimeout(210000);
  const errors:string[]=[];page.on('pageerror',err=>errors.push(err.message));
@@ -59,6 +60,22 @@ test('real open-source dungeon: startup, authored scene, enemies, frame renderin
  console.log('LIVE_DODGE_BROWSER_QA',JSON.stringify({dodgeBefore,dodgeAfter,dodgeDistance}));
 
  await page.screenshot({path:'qa/cryptfire-gameplay.png',fullPage:true});
+ // Simulate a late-game screenful of critical hits, deaths, loot and shrine FX.
+ // The game MUST remain readable even when the simulation generates 720 events.
+ const fx=await page.evaluate(()=>(window as any).__torchlineQa.fxStress(180));
+ expect(fx.active).toBeLessThanOrEqual(24);
+ const screenshot=await page.screenshot({path:'qa/cryptfire-combat-stress.png',fullPage:true});
+ const png=PNG.sync.read(screenshot);
+ let white=0,visible=0;
+ // Ignore tiny bright HUD labels and count actual saturated screen pixels.
+ for(let y=0;y<png.height;y+=3)for(let x=0;x<png.width;x+=3){
+   const i=(y*png.width+x)*4,r=png.data[i],g=png.data[i+1],b=png.data[i+2];
+   if(r>246&&g>242&&b>232)white++;
+   visible++;
+ }
+ const whiteFraction=white/visible;
+ console.log('COMBAT_VISUAL_STRESS_QA',JSON.stringify({fx,whiteFraction,pixels:visible}));
+ expect(whiteFraction).toBeLessThan(.12);
  expect(errors).toEqual([]);
  console.log('CRYPTFIRE_QA',JSON.stringify({before:before.state,metrics}));
 });
