@@ -154,6 +154,9 @@ export class HudController {
     requiredElement<HTMLButtonElement>("btn-wait").addEventListener("click", () =>
       callbacks.dispatch({ type: "basicAttack" })
     );
+    requiredElement<HTMLButtonElement>("btn-dodge").addEventListener("click", () =>
+      callbacks.dispatch({ type: "dodge" })
+    );
     requiredElement<HTMLButtonElement>("btn-shrine").addEventListener("click", () =>
       callbacks.dispatch({ type: "useAbility" })
     );
