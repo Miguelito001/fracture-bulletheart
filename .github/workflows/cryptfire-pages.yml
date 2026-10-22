@@ -1,0 +1,43 @@
+name: FRACTURE Cryptfire — alternative playable GitHub Pages preview
+on:
+  push:
+    branches: [feature/fracture-torchlit-rebuild]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: fracture-cryptfire-pages
+  cancel-in-progress: true
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install game dependencies
+        run: npm install --no-audit --no-fund
+      - name: Retrieve verified open-source art and sound
+        run: npm run assets
+      - name: Run all game regression tests
+        run: npm test
+      - name: Compile and build for repository Pages path
+        run: npm run typecheck && npx vite build --base=/fracture-bulletheart/
+      - name: Configure public Pages environment
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload real playable game
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+      - name: Publish new test build
+        id: deployment
+        uses: actions/deploy-pages@v4
