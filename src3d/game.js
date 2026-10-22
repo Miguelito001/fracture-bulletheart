@@ -48,8 +48,8 @@ function loadProgress(){
 class Fracture {
  constructor(){
   this.renderer=new THREE.WebGLRenderer({canvas:$('scene'),antialias:true,powerPreference:'high-performance'});
-  this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.35));this.renderer.setSize(innerWidth,innerHeight);
-  this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,.78));this.renderer.setSize(innerWidth,innerHeight);
+  this.renderer.shadowMap.enabled=false;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.92;
   this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#0d1422');this.scene.fog=new THREE.FogExp2(0x101a28,.009);
   this.camera=new THREE.OrthographicCamera(-16,16,9,-9,.1,360);
@@ -58,7 +58,7 @@ class Fracture {
   this.worldGroup=null;this.actorGroup=new THREE.Group();this.scene.add(this.actorGroup);
   this.scene.add(new THREE.HemisphereLight(0xb8d8ff,0x222536,1.02));
   this.sun=new THREE.DirectionalLight(0xffe2b9,1.9);this.sun.position.set(-15,28,18);
-  this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);
+  this.sun.castShadow=false;this.sun.shadow.mapSize.set(1024,1024);
   this.sun.shadow.camera.left=-75;this.sun.shadow.camera.right=75;this.sun.shadow.camera.top=75;this.sun.shadow.camera.bottom=-75;
   this.sun.shadow.bias=-.00035;this.scene.add(this.sun);this.lights=[];
   this.raycaster=new THREE.Raycaster();this.plane=new THREE.Plane(new THREE.Vector3(0,1,0),-.05);
@@ -108,7 +108,7 @@ class Fracture {
   }catch(error){this.errors.push(String(error));$('loading').textContent='Erro ao carregar: '+error.message;console.error(error);}
  }
  resize(){
-  this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.35));this.renderer.setSize(innerWidth,innerHeight);
+  this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,.78));this.renderer.setSize(innerWidth,innerHeight);
   const halfH=8.0,halfW=halfH*innerWidth/Math.max(1,innerHeight);
   this.camera.left=-halfW;this.camera.right=halfW;this.camera.top=halfH;this.camera.bottom=-halfH;
   this.camera.updateProjectionMatrix();
@@ -118,8 +118,13 @@ class Fracture {
  renderMenu(){const b=$('menu');b.innerHTML=`<div class="panel"><span class="eyebrow">FRACTURE: BULLETHEART</span><h1>THE FRACTURED CITADEL</h1><p>O mundo entre ecos. Entre, lute, volte vivo.</p><button data-new-game="true">EXPLORAR A CÂMARA ÂNCORA</button><small>Projeto 3D: Three.js · Rapier · Kenney CC0</small></div>`;
   b.querySelector('button').addEventListener('click',()=>this.setMode('hub'));
  }
- addLight(x,z,color,intensity=4){const point=new THREE.PointLight(color,intensity,18,2);point.position.set(x,3.7,z);this.worldGroup.add(point);this.lights.push(point);
-  const flame=new THREE.Mesh(this.lightGeometry,mat(color,{emissive:color,emissiveIntensity:3}));flame.position.set(x,2.75,z);this.worldGroup.add(flame);
+ addLight(x,z,color,intensity=4){
+  if(this.lights.length<6){
+   const point=new THREE.PointLight(color,Math.min(intensity,2.5),13,2);
+   point.position.set(x,3.7,z);this.worldGroup.add(point);this.lights.push(point);
+  }
+  const flame=new THREE.Mesh(this.lightGeometry,mat(color,{emissive:color,emissiveIntensity:3}));
+  flame.position.set(x,2.75,z);this.worldGroup.add(flame);
  }
  // Every solid scene object and its Rapier collider share the same authored x/z.
  solid(x,y,z,hx,hy,hz){const body=this.physics.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));
