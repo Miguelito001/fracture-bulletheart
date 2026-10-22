@@ -205,6 +205,8 @@ export type EffectType =
   | "pickup"
   | "door"
   | "hit"
+  | "swing"
+  | "dodge"
   | "death"
   | "loot-beam"
   | "shrine"
