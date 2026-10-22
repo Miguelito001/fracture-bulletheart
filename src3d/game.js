@@ -346,14 +346,29 @@ class Fracture {
   this.cast=4;this.castOrigin=this.playerBody.translation();this.notice('RITUAL DE RETORNO · 4 SEGUNDOS · NÃO SE MOVA');
  }
  heal(){if(this.mode!=='playing'||this.potions<=0||this.hp===this.maxHp)return;this.potions--;this.hp=Math.min(this.maxHp,this.hp+38);this.audio.play('heal');this.notice('POÇÃO DE VIDA · +38');this.updateHUD();}
- startDodge(){if(this.mode!=='playing'||this.dashCooldown>0)return;this.dashTime=.22;this.dashCooldown=.95;this.invuln=Math.max(this.invuln,.27);this.audio.play('dodge');this.notice('');}
+ startDodge(){if(this.mode!=='playing'||this.dashCooldown>0)return;
+  // Preserve dash heading through its entire duration. The old controller
+  // lost the dash whenever WASD was released, causing a stuttering roll.
+  const h=Number(this.keys.has('KeyD')||this.keys.has('ArrowRight'))-Number(this.keys.has('KeyA')||this.keys.has('ArrowLeft'));
+  const v=Number(this.keys.has('KeyS')||this.keys.has('ArrowDown'))-Number(this.keys.has('KeyW')||this.keys.has('ArrowUp'));
+  this.dashVector.copy(screenRelativeInput(h,v,this.cameraOffset));
+  if(this.dashVector.lengthSq()<.001)this.dashVector.copy(this.velocity).normalize();
+  if(this.dashVector.lengthSq()<.001)this.dashVector.copy(this.aim).normalize();
+  this.dashTime=.22;this.dashCooldown=.95;this.invuln=Math.max(this.invuln,.27);
+  this.audio.play('dodge');this.notice('');
+  if(this.heroAnimations?.dodge){this.playMotion(this.heroAnimations,this.heroAnimationState,'dodge',true);this.heroAnimationState='dodge';}
+ }
  special(){if(this.mode!=='playing'||this.attackCooldown>0)return;this.weapon='blade';this.attackCooldown=.8;const p=this.playerBody.translation();
   for(const enemy of this.enemyUnits)if(enemy.hp>0&&Math.hypot(enemy.x-p.x,enemy.z-p.z)<4.3)this.hitEnemy(enemy,23);
   this.pulse(p.x,p.z,0x8bdfed,1.8);
  }
  attack(forceGun=false){if(this.mode!=='playing'||this.attackCooldown>0)return;
   const gun=forceGun||this.weapon==='gun',range=gun?13.5:3.0,angle=gun?.36:1.05;
-  this.attackCooldown=gun?.46:.39;this.lastAttack=gun?'gun':'blade';this.weaponKick=gun?1:.6;this.audio.play(gun?'gun':'sword');
+  this.attackCooldown=gun?.46:.39;this.lastAttack=gun?'gun':'blade';this.weaponKick=gun?1:.6;
+  this.attackPoseLength=gun?.32:.38;this.attackPose=this.attackPoseLength;
+  this.audio.play(gun?'gun':'sword');
+  this.playMotion(this.heroAnimations,this.heroAnimationState,gun?'shoot':'attack',true);
+  this.heroAnimationState=gun?'shoot':'attack';
   const p=this.playerBody.translation(),dir=this.aim;
   let nearest=null,distBest=999;
   for(const e of this.enemyUnits){if(e.hp<=0)continue;
@@ -413,8 +428,13 @@ class Fracture {
   const mesh=new THREE.Mesh(new THREE.TorusGeometry(size,.055,6,32),material);
   mesh.rotation.x=-Math.PI/2;mesh.position.set(x,.13,z);this.worldGroup.add(mesh);this.fx.push({mesh,time:.43,max:.43});
  }
- hitEnemy(e,damage){e.hp-=damage;e.stagger=.16;
-  this.pulse(e.x,e.z,0xffad8d,.43);this.audio.play('hit');if(e.hp<=0){e.hp=0;this.enemyDown(e);}
+ hitEnemy(e,damage){
+  if(e.hp<=0)return;
+  e.hp-=damage;e.stagger=.16;
+  this.feedback?.hit(e,damage,e.kind==='warden'||damage>=25);
+  this.pulse(e.x,e.z,0xffad8d,.43);this.audio.play('hit');
+  if(e.hp<=0){e.hp=0;this.enemyDown(e);}
+
  }
  enemyDown(e){
   this.killCount++;this.xp+=e.kind==='warden'?190:e.kind==='knight'?27:16;
@@ -449,19 +469,40 @@ class Fracture {
  configureAnimations(mesh,name){
   const clips=this.animationClips.get(name)||[];
   const mixer=new THREE.AnimationMixer(mesh),actions={};
-  const search={idle:/idle|standing/i,run:/run|walk/i,attack:/melee_attack|attack|slash|swing/i,shoot:/ranged|shoot|fire|bow|throw|spellcast/i,hit:/hit|hurt|impact/i,death:/death|die/i};
-  for(const [id,pattern] of Object.entries(search)){
-   const clip=clips.find(c=>pattern.test(c.name));if(clip)actions[id]=mixer.clipAction(clip);
+  // Prefer the specific authored KayKit clip for each state, not the first
+  // broad 'attack' match (which often selected an unsuitable animation).
+  const patterns={
+   idle:[/idle_a/i,/idle/i,/standing/i],
+   run:[/running_a/i,/running/i,/run/i,/walking_a/i,/walking/i],
+   dodge:[/dodge_roll/i,/dodge/i,/roll/i,/evade/i],
+   attack:[/melee.*1h.*attack/i,/melee.*attack.*sword/i,/one.?hand.*attack/i,/melee.*attack/i,/attack/i,/slash/i],
+   shoot:[/ranged.*1h.*shoot/i,/ranged.*1h/i,/shoot/i,/fire/i,/ranged/i,/bow.*release/i],
+   hit:[/hit_a/i,/hit/i,/hurt/i,/impact/i],
+   death:[/death_a/i,/death/i,/die/i]
+  };
+  for(const [key,tries] of Object.entries(patterns)){
+   const clip=tries.map(rx=>clips.find(c=>rx.test(c.name))).find(Boolean);
+   if(clip)actions[key]=mixer.clipAction(clip);
   }
-  if(actions.idle)actions.idle.play();else if(clips[0])actions.idle=mixer.clipAction(clips[0]).play();
+  if(!actions.idle&&clips[0])actions.idle=mixer.clipAction(clips[0]);
+  actions.idle?.play();
+  if(name==='kay-knight')this.selectedClips=Object.fromEntries(Object.entries(actions).map(([key,action])=>[key,action.getClip().name]));
   return {mixer,actions};
  }
- playMotion(actions,last,name){
-  const desired=actions?.[name]||actions?.idle;if(!desired)return;
-  const previous=actions?.[last];if(previous&&previous!==desired)previous.fadeOut(.13);
-  if(name==='attack'||name==='shoot'||name==='hit'){desired.setLoop(THREE.LoopOnce,1);desired.clampWhenFinished=true;}
-  else desired.setLoop(THREE.LoopRepeat,Infinity);
-  desired.reset().fadeIn(.13).play();
+ playMotion(actions,last,name,force=false){
+  const desired=actions?.[name]||(name==='shoot'?actions?.attack:null)||actions?.idle;
+  if(!desired)return;
+  if(!force&&actions?.[last]===desired&&desired.isRunning())return;
+  const previous=actions?.[last];
+  if(previous&&previous!==desired)previous.fadeOut(.08);
+  const oneShot=['attack','shoot','dodge','hit','death'].includes(name);
+  desired.enabled=true;
+  desired.setLoop(oneShot?THREE.LoopOnce:THREE.LoopRepeat,oneShot?1:Infinity);
+  desired.clampWhenFinished=oneShot;
+  // An attack must visibly unfold while the hitbox is active.
+  const duration=desired.getClip().duration||.5;
+  desired.timeScale=oneShot?Math.max(.7,Math.min(3.2,duration/(name==='shoot'?.32:name==='dodge'?.22:.38))):1;
+  desired.reset().setEffectiveWeight(1).fadeIn(oneShot?.055:.12).play();
  }
  startCombat(room){if(room.spawned||room.cleared||room.index===0)return;
   room.spawned=true;room.active=true;this.roomIndex=room.index;
