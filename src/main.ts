@@ -308,7 +308,7 @@ const hud = new HudController({
   replay: () => game.replayFromStart()
 });
 
-const movement = bindKeyboard(dispatch, () => game.state.player, () => game.state.mode === 'playing' && !document.getElementById('hud')?.classList.contains('pack-open'));
+const movement = bindKeyboard(dispatch, () => game.state.player, () => game.state.mode === 'playing' && !document.getElementById('hud')?.classList.contains('pack-open'), (x,y) => game.setDirectInput(x,y));
 
 let audioUnlockStarted = false;
 async function unlockAudio(): Promise<void> {
