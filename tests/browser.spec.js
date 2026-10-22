@@ -15,6 +15,41 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  const authored=await page.evaluate(()=>window.__FRACTURE3D__.selectedClips);
  console.log('KAYKIT_SELECTED_CLIPS',JSON.stringify(authored));
  expect(authored.idle).toBeTruthy();expect(authored.run).toBeTruthy();expect(authored.attack).toBeTruthy();
+ const loadout=await page.evaluate(()=>{
+  const g=window.__FRACTURE3D__,models=[];
+  g.hero.traverse(n=>{if(n.isMesh||n.isSkinnedMesh)models.push({
+   name:n.name,visible:n.visible,material:(Array.isArray(n.material)?n.material:[n.material]).map(m=>m.name),
+   starter:!!n.userData.hiddenStarterGear
+  });});
+  return {equipment:g.equipment,visual:g.equipmentVisualState,bones:g.equipmentDebug?.boneNames,
+   hidden:g.equipmentDebug?.hidden,parts:models.slice(0,80)};
+ });
+ console.log('SOURCE_KAYKIT_EQUIPMENT',JSON.stringify(loadout));
+ expect(loadout.equipment).toMatchObject({hand1:'blade',hand2:null});
+ expect(loadout.visual.hand1).toEqual(['blade']);expect(loadout.visual.hand2).toEqual([]);
+ expect(await page.evaluate(()=>window.__FRACTURE3D__.handModels.hand2.blade.visible)).toBe(false);
+ // Equipping secondary gun actually mounts it on the second hand only.
+ const both=await page.evaluate(()=>{
+  const g=window.__FRACTURE3D__;g.equipHand('hand2','gun');
+  return {gear:g.equipment,visual:g.equipmentVisualState,gun:g.handModels.hand2.gun.visible};
+ });
+ expect(both.gear).toMatchObject({hand1:'blade',hand2:'gun'});
+ expect(both.visual.hand1).toEqual(['blade']);expect(both.visual.hand2).toEqual(['gun']);
+ await page.keyboard.press('Digit2');
+ const noDuplicate=await page.evaluate(()=>{
+  const g=window.__FRACTURE3D__;return {gear:g.equipment,visual:g.equipmentVisualState};
+ });
+ expect(noDuplicate.gear).toMatchObject({hand1:'gun',hand2:null});
+ expect(noDuplicate.visual.hand1).toEqual(['gun']);expect(noDuplicate.visual.hand2).toEqual([]);
+ await page.keyboard.press('Digit1');
+ await page.keyboard.press('KeyI');
+ await expect(page.locator('#equipment-inventory')).toBeVisible();
+ await page.locator('#equipment-inventory button[data-equip-hand="hand2"][data-item-id="gun"]').click();
+ expect(await page.evaluate(()=>window.__FRACTURE3D__.handModels.hand2.gun.visible)).toBe(true);
+ await page.locator('#equipment-inventory [data-close-equipment]').click();
+ // Clear secondary hand so existing locomotion/combat tests remain deterministic.
+ await page.evaluate(()=>window.__FRACTURE3D__.equipHand('hand2',null));
+
  await page.waitForTimeout(1100);
  const rig=await page.evaluate(()=>{
   const g=window.__FRACTURE3D__;
@@ -179,6 +214,18 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  });
  expect(extracted.world).toBe('hub');expect(extracted.iron).toBeGreaterThanOrEqual(4);
  expect(extracted.embers).toBeGreaterThanOrEqual(2);
+ // Equipment survives extraction and is recovered from local storage after reload.
+ await page.evaluate(()=>window.__FRACTURE3D__.equipHand('hand2','gun'));
+ await page.reload({waitUntil:'domcontentloaded'});
+ await page.waitForFunction(()=>window.__FRACTURE3D__?.gameStarted===true,{timeout:65000});
+ const restored=await page.evaluate(()=>{
+  const g=window.__FRACTURE3D__;return {equipment:g.equipment,visual:g.equipmentVisualState,
+  saved:JSON.parse(localStorage.getItem('fracture_bulletheart_3d_v1'))?.equipment};
+ });
+ expect(restored.equipment).toMatchObject({hand1:'blade',hand2:'gun'});
+ expect(restored.visual.hand2).toEqual(['gun']);
+ expect(restored.saved).toMatchObject({hand1:'blade',hand2:'gun'});
+ console.log('HAND_EQUIPMENT_PERSISTENCE_QA',JSON.stringify(restored));
  expect(errors).toEqual([]);
  console.log('3D_ENGINE_QA',JSON.stringify({initial,origin,collision,entered,target,after,extracted}));
 });
