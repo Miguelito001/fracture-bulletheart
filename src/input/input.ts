@@ -46,7 +46,8 @@ export function bindKeyboard(
     }
     // Browser auto-repeat must never trigger five attacks per held key.
     if (event.repeat) return;
-    if (key === " ") { event.preventDefault(); dispatch({ type: "useAbility" }); }
+    if (key === " ") { event.preventDefault(); dispatch({ type: "dodge" }); }
+    else if (key === "c") { event.preventDefault(); dispatch({ type: "useAbility" }); }
     else if (key === "e") dispatch({ type: "useStairs" });
     else if (key === "f") dispatch({ type: "activateShrine" });
     else if (key === "q") dispatch({ type: "drinkPotion" });
