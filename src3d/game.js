@@ -324,6 +324,14 @@ class Fracture {
   const setup=this.configureAnimations(root,'kay-knight');this.heroMixer=setup.mixer;this.heroAnimations=setup.actions;this.heroAnimationState='idle';
   // Source model's decorative starter weapons are not equipment.
   this.embeddedGearHidden=hideEmbeddedEquipment(root);
+  // The official KayKit Knight includes a genuine 1H_Sword mesh already
+  // mounted to its handslot.r. Reuse that correctly rigged asset when sword
+  // is equipped, rather than attach a SECOND Kenney sword on top of it.
+  let authoredSword=null;
+  root.traverse(node=>{
+   if((node.isMesh||node.isSkinnedMesh)&&/(?:^|[_-])1h[_-]?sword(?:$|[_-])/i.test(node.name||''))authoredSword ||= node;
+  });
+  this.authoredSword=authoredSword;
   const bones=findHandBones(root);
   this.weaponRigs={};this.handModels={};
   for(const hand of ['hand1','hand2']){
@@ -334,16 +342,17 @@ class Fracture {
     joint.updateWorldMatrix(true,false);const scale=joint.getWorldScale(new THREE.Vector3());
     mount.scale.set(1/Math.max(.001,Math.abs(scale.x)),1/Math.max(.001,Math.abs(scale.y)),1/Math.max(.001,Math.abs(scale.z)));
    }
-   const blade=this.meshModel(GEAR.blade.model,0,0,.39,{group:mount});
+   const blade=hand==='hand1'&&authoredSword?authoredSword:
+     this.meshModel(GEAR.blade.model,0,0,.39,{group:mount});
    const gun=this.meshModel(GEAR.gun.model,0,0,.50,{group:mount});
-   if(blade){blade.position.set(.11,.055,0);blade.rotation.set(Math.PI/2,0,0);}
+   if(blade&&blade!==authoredSword){blade.position.set(.11,.055,0);blade.rotation.set(Math.PI/2,0,0);}
    if(gun){gun.position.set(.10,-.02,.03);gun.rotation.set(0,Math.PI/2,0);}
    this.weaponRigs[hand]=mount;this.handModels[hand]={blade,gun};
   }
   this.weaponRig=this.weaponRigs.hand1;
   this.heroSword=this.handModels.hand1.blade;this.heroGun=this.handModels.hand1.gun;
   this.syncEquippedVisuals();
-  this.equipmentDebug={boneNames:{hand1:bones.hand1?.name||null,hand2:bones.hand2?.name||null},hidden:this.embeddedGearHidden};
+  this.equipmentDebug={boneNames:{hand1:bones.hand1?.name||null,hand2:bones.hand2?.name||null},hidden:this.embeddedGearHidden,authoredSword:authoredSword?.name||null};
  }
  openHub(){
   this.clearWorld();this.scene.fog.color.setHex(PALETTE.sanctuary.fog);
