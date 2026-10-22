@@ -1,0 +1,44 @@
+name: FRACTURE 2D — static playable preview
+on:
+  push:
+    branches: [feature/fracture-canvas2d]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: fracture-2d-static
+  cancel-in-progress: true
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run assets
+      - run: npm test
+      - run: npm run typecheck
+      - name: Build standalone HTML + JS + sprite atlases + sound
+        env:
+          RAW_PREVIEW: 'true'
+        run: npm run build
+      - name: Create standalone public static snapshot branch
+        run: |
+          SITE_TMP=$(mktemp -d)
+          cp -a dist/. "$SITE_TMP/"
+          git config user.name "fracture-2d-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout --orphan playable-2d
+          git rm -rf . --ignore-unmatch
+          git clean -fdx
+          cp -a "$SITE_TMP"/. ./
+          touch .nojekyll
+          git add -A .
+          git commit -m "publish: standalone FRACTURE Canvas 2D from ${GITHUB_SHA}"
+          git push --force origin HEAD:refs/heads/playable-2d
+          echo "https://raw.githack.com/Miguelito001/fracture-bulletheart/playable-2d/index.html" >> "$GITHUB_STEP_SUMMARY"
