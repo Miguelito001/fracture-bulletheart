@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { limitCombatFx, MAX_VISIBLE_FX } from "./fx-budget";
 import type { LoadedAtlas } from "../assets/asset-loader";
 import { calculatePlayerStats } from "../core/game";
 import { idx } from "../core/dungeon";
@@ -368,7 +369,8 @@ export class ThreeRenderer {
     const visualNow = this.advanceVisualClock(state, now);
     this.resize();
     this.ensureStaticWorld(state);
-    this.addEffects(events, visualNow);
+    this.addEffects(limitCombatFx(events,state.player), visualNow);
+    this.enforceFxBudget();
     this.syncDynamicWorld(state, visualNow);
     this.syncDebugWorld(state);
     this.updateEffects(visualNow);
@@ -3796,11 +3798,11 @@ export class ThreeRenderer {
           map: beamTexture,
           transparent: true,
           opacity,
-          blending: THREE.AdditiveBlending,
+          blending: THREE.NormalBlending,
           depthWrite: false,
           depthTest: true,
           alphaTest: 0.01,
-          toneMapped: false
+          toneMapped: true
         })
       );
       this.beamRecords.set(key, beam);
@@ -3808,10 +3810,10 @@ export class ThreeRenderer {
     }
     const pos = this.toWorld(point);
     beam.position.set(pos.x, height * 0.5, pos.z);
-    beam.scale.set(Math.max(0.42, radius * 18), height, 1);
+    beam.scale.set(Math.max(0.26, radius * 6), Math.min(1.8,height), 1);
     const material = beam.material as THREE.SpriteMaterial;
     material.color.setHex(color);
-    material.opacity = clamp(opacity, 0, 1);
+    material.opacity = clamp(opacity*0.45, 0, .18);
     return beam;
   }
 
@@ -3820,27 +3822,28 @@ export class ThreeRenderer {
       if (event.x === undefined || event.y === undefined) continue;
       if (event.type === "damage") {
         if (event.amount !== undefined) this.addTextFx(event, now);
-        if (event.heavy) this.addRingFx(event, now, 0.85, 640);
-      } else if (event.type === "loot-beam" || event.type === "pickup") {
+        if (event.heavy) this.addRingFx(event, now, 0.55, 260);
+      } else if (event.type === "loot-beam") {
         this.addBeamFx(event, now);
+      } else if (event.type === "pickup") {
+        this.addRingFx(event,now,0.4,210);
       } else if (event.type === "swing") {
         this.addSwordSwingFx(event, now);
       } else if (event.type === "dodge") {
-        this.addRingFx(event, now, 0.72, 240);
+        this.addRingFx(event, now, 0.45, 180);
       } else if (event.type === "hit") {
         this.addSparkFx(event, now);
-        if (event.heavy) this.addRingFx(event, now, 0.92, 620);
+        if (event.heavy) this.addRingFx(event, now, 0.6, 240);
       } else if (event.type === "death") {
         this.addDeathGhostFx(event, now);
-        this.addSparkFx(event, now);
-        this.addRingFx(event, now, event.heavy ? 1.4 : 1.05, event.heavy ? 960 : 720);
+        if (event.heavy) this.addSparkFx(event, now);
       } else if (event.type === "shrine") {
         this.addBeamFx(event, now);
         this.addSparkFx(event, now);
-        this.addRingFx(event, now, 1.55, 1100);
+        this.addRingFx(event, now, 0.7, 320);
       } else if (event.type === "door") {
         this.addSparkFx(event, now);
-        this.addRingFx(event, now, 0.95, 680);
+        this.addRingFx(event, now, 0.45, 190);
       }
       this.addCameraImpulse(event, now);
     }
@@ -3863,81 +3866,35 @@ export class ThreeRenderer {
     sprite.scale.set(event.heavy ? 1.25 : 0.95, event.heavy ? 0.5 : 0.38, 1);
     this.fxWorld.add(sprite);
     const id = this.fxId(event, "text");
-    this.runtimeFx.set(id, { id, object: sprite, born: now, duration: 900, baseY: 1.9, kind: "text" });
+    this.runtimeFx.set(id, { id, object: sprite, born: now, duration: 480, baseY: 1.9, kind: "text" });
   }
 
   private addBeamFx(event: EffectEvent, now: number): void {
-    const color = colorFromHex(event.color ?? "#f1c86a", COLOR_GOLD).getHex();
-    const heavy = event.type === "loot-beam" || event.heavy === true;
-    const group = new THREE.Group();
+    const color = colorFromHex(event.color ?? "#b9c9ac", COLOR_GOLD).getHex();
     const pos = this.toWorld({ x: event.x!, y: event.y! });
-    group.position.set(pos.x, 0.04, pos.z);
-
-    const height = heavy ? 4.6 : 2.35;
-    const beam = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        color,
-        map: this.proceduralTexture(PROCEDURAL_LOOT_BEAM_TEXTURE, () => this.createLootBeamTexture()),
-        transparent: true,
-        opacity: heavy ? 0.62 : 0.38,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        depthTest: true,
-        alphaTest: 0.01,
-        toneMapped: false
-      })
-    );
-    beam.position.y = height * 0.5;
-    beam.scale.set(heavy ? 1.1 : 0.62, height, 1);
-    group.add(beam);
-
-    const ringMaterial = new THREE.MeshBasicMaterial({
+    const beam = new THREE.Sprite(new THREE.SpriteMaterial({
       color,
+      map: this.proceduralTexture(PROCEDURAL_LOOT_BEAM_TEXTURE, () => this.createLootBeamTexture()),
       transparent: true,
-      opacity: heavy ? 0.78 : 0.42,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.22,
+      blending: THREE.NormalBlending,
       depthWrite: false,
-      side: THREE.DoubleSide
-    });
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.28, heavy ? 0.66 : 0.48, 40), ringMaterial);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.025;
-    group.add(ring);
-
-    const crown = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        color,
-        transparent: true,
-        opacity: heavy ? 0.78 : 0.46,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        alphaTest: 0.01
-      })
-    );
-    const crownTexture = this.texture("fx-bloom");
-    if (crownTexture) crown.material.map = crownTexture;
-    crown.position.y = heavy ? 1.45 : 0.74;
-    crown.scale.set(heavy ? 1.35 : 0.72, heavy ? 1.35 : 0.72, 1);
-    group.add(crown);
-
-    this.fxWorld.add(group);
-    const id = this.fxId(event, "beam");
-    this.runtimeFx.set(id, {
-      id,
-      object: group,
-      born: now,
-      duration: heavy ? 1900 : 880,
-      baseY: 0.04,
-      kind: "beam"
-    });
+      depthTest: true,
+      toneMapped: true
+    }));
+    beam.position.set(pos.x, 0.78, pos.z);
+    beam.scale.set(0.36, 1.5, 1);
+    this.fxWorld.add(beam);
+    const id=this.fxId(event,"beam");
+    this.runtimeFx.set(id,{id,object:beam,born:now,duration:380,baseY:0.78,kind:"beam"});
   }
 
   private addSparkFx(event: EffectEvent, now: number): void {
     const material = new THREE.SpriteMaterial({
       color: colorFromHex(event.color ?? "#f2a84b", COLOR_AMBER).getHex(),
       transparent: true,
-      opacity: 0.95,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.52,
+      blending: THREE.NormalBlending,
       depthWrite: false,
       alphaTest: 0.01
     });
@@ -3946,7 +3903,7 @@ export class ThreeRenderer {
     const sprite = new THREE.Sprite(material);
     const pos = this.toWorld({ x: event.x!, y: event.y! });
     sprite.position.set(pos.x, 1.0, pos.z);
-    const scale = event.type === "death" ? (event.heavy ? 1.65 : 1.25) : event.heavy ? 1.35 : 1.1;
+    const scale = event.type === "death" ? 0.72 : event.heavy ? 0.74 : 0.54;
     sprite.scale.set(scale, scale, 1);
     this.fxWorld.add(sprite);
     const id = this.fxId(event, "spark");
@@ -3954,7 +3911,7 @@ export class ThreeRenderer {
       id,
       object: sprite,
       born: now,
-      duration: event.type === "death" ? 740 : 520,
+      duration: event.type === "death" ? 270 : 190,
       baseY: scale,
       kind: "spark"
     });
@@ -3965,10 +3922,10 @@ export class ThreeRenderer {
     // the 210ms arc aligns with the game's contact geometry.
     const material=new THREE.MeshBasicMaterial({
       color:colorFromHex(event.color ?? "#ffe6a7",0xffe6a7).getHex(),
-      transparent:true,opacity:.86,blending:THREE.AdditiveBlending,
+      transparent:true,opacity:.5,blending:THREE.NormalBlending,
       depthWrite:false,side:THREE.DoubleSide,toneMapped:false
     });
-    const geometry=new THREE.TorusGeometry(.82,.067,5,34,Math.PI*1.25);
+    const geometry=new THREE.TorusGeometry(.70,.04,5,34,Math.PI*1.25);
     const mesh=new THREE.Mesh(geometry,material);
     const pos=this.toWorld({x:event.x!,y:event.y!});
     mesh.rotation.x=-Math.PI/2;
@@ -3976,7 +3933,7 @@ export class ThreeRenderer {
     mesh.position.set(pos.x,.72,pos.z);
     this.fxWorld.add(mesh);
     const id=this.fxId(event,"swing");
-    this.runtimeFx.set(id,{id,object:mesh,born:now,duration:210,baseY:1,kind:"ring"});
+    this.runtimeFx.set(id,{id,object:mesh,born:now,duration:165,baseY:.7,kind:"ring"});
   }
 
   private addRingFx(event: EffectEvent, now: number, scale: number, duration: number): void {
@@ -3984,19 +3941,19 @@ export class ThreeRenderer {
     const material = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
-      opacity: event.heavy ? 0.72 : 0.52,
-      blending: THREE.AdditiveBlending,
+      opacity: event.heavy ? 0.30 : 0.20,
+      blending: THREE.NormalBlending,
       depthWrite: false,
       side: THREE.DoubleSide
     });
-    const mesh = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.42, 44), material);
+    const mesh = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.34, 32), material);
     const pos = this.toWorld({ x: event.x!, y: event.y! });
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.set(pos.x, 0.055, pos.z);
     mesh.scale.setScalar(scale);
     this.fxWorld.add(mesh);
     const id = this.fxId(event, "ring");
-    this.runtimeFx.set(id, { id, object: mesh, born: now, duration, baseY: scale, kind: "ring" });
+    this.runtimeFx.set(id, { id, object: mesh, born: now, duration: Math.min(duration,340), baseY: scale, kind: "ring" });
   }
 
   private addDeathGhostFx(event: EffectEvent, now: number): void {
@@ -4005,7 +3962,7 @@ export class ThreeRenderer {
     const material = new THREE.SpriteMaterial({
       color: colorFromHex(event.color ?? "#ffffff", 0xffffff).getHex(),
       transparent: true,
-      opacity: 0.78,
+      opacity: 0.40,
       depthTest: true,
       depthWrite: false,
       alphaTest: 0.035
@@ -4028,7 +3985,7 @@ export class ThreeRenderer {
       id,
       object: sprite,
       born: now,
-      duration: event.heavy ? 1050 : 820,
+      duration: event.heavy ? 550 : 400,
       baseY: scale * 0.74,
       kind: "corpse"
     });
@@ -4040,8 +3997,8 @@ export class ThreeRenderer {
       const t = clamp(age / fx.duration, 0, 1);
       const opacity = 1 - t;
       if (fx.kind === "text") fx.object.position.y = fx.baseY + t * 1.05;
-      if (fx.kind === "spark") fx.object.scale.setScalar(fx.baseY * (1 + t * 1.35));
-      if (fx.kind === "ring") fx.object.scale.setScalar(fx.baseY * (0.45 + t * 1.75));
+      if (fx.kind === "spark") fx.object.scale.setScalar(fx.baseY * (1 + t * .22));
+      if (fx.kind === "ring") fx.object.scale.setScalar(fx.baseY * (0.55 + t * .40));
       if (fx.kind === "beam") {
         const pulse = 1 + Math.sin(age * 0.025) * 0.07;
         fx.object.scale.set(pulse, 1, pulse);
@@ -4060,10 +4017,43 @@ export class ThreeRenderer {
       }
       this.setObjectOpacity(fx.object, opacity);
       if (t >= 1) {
-        this.fxWorld.remove(fx.object);
-        this.runtimeFx.delete(fx.id);
+        this.removeRuntimeFx(fx.id);
       }
     }
+  }
+
+  private removeRuntimeFx(id:string):void {
+    const fx=this.runtimeFx.get(id);
+    if(!fx)return;
+    this.fxWorld.remove(fx.object);
+    fx.object.traverse(part=>{
+      if(!(part instanceof THREE.Mesh)&&!(part instanceof THREE.Sprite))return;
+      if(part instanceof THREE.Mesh)part.geometry.dispose();
+      const material=part.material;
+      for(const m of (Array.isArray(material)?material:[material])){
+        // Text sprites own their generated texture; other textures are cached and shared.
+        if(fx.kind==="text" && m instanceof THREE.SpriteMaterial)m.map?.dispose();
+        m.dispose();
+      }
+    });
+    this.runtimeFx.delete(id);
+  }
+  private enforceFxBudget():void {
+    while(this.runtimeFx.size>MAX_VISIBLE_FX){
+      const oldest=this.runtimeFx.keys().next().value as string | undefined;
+      if(!oldest)break;
+      this.removeRuntimeFx(oldest);
+    }
+  }
+  public fxSnapshot():{active:number,beam:number,spark:number,ring:number,text:number}{
+    const values=[...this.runtimeFx.values()];
+    return {
+      active:values.length,
+      beam:values.filter(x=>x.kind==="beam").length,
+      spark:values.filter(x=>x.kind==="spark").length,
+      ring:values.filter(x=>x.kind==="ring").length,
+      text:values.filter(x=>x.kind==="text").length
+    };
   }
 
   private fxId(event: EffectEvent, part: string): string {
