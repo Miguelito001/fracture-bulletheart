@@ -12,6 +12,9 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  });
  expect(initial.mode).toBe('hub');expect(initial.assets).toBeGreaterThanOrEqual(50);expect(initial.renderer).toBe(true);
  expect(initial.heroMixer).toBe(true);expect(initial.knightClips).toBeGreaterThan(2);expect(initial.skeletonClips).toBeGreaterThan(2);
+ const authored=await page.evaluate(()=>window.__FRACTURE3D__.selectedClips);
+ console.log('KAYKIT_SELECTED_CLIPS',JSON.stringify(authored));
+ expect(authored.idle).toBeTruthy();expect(authored.run).toBeTruthy();expect(authored.attack).toBeTruthy();
  await page.waitForTimeout(1100);
  const rig=await page.evaluate(()=>{
   const g=window.__FRACTURE3D__;
@@ -46,6 +49,17 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
   const g=window.__FRACTURE3D__;return {weapon:g.weapon,gun:g.heroGun.visible,sword:g.heroSword.visible};
  });
  expect(blade).toMatchObject({weapon:'blade',gun:false,sword:true});
+ // Verify keyboard traversal is actually camera-relative in live Rapier physics.
+ const walkStart=await page.evaluate(()=>window.__FRACTURE3D__.playerBody.translation());
+ await page.keyboard.down('w');
+ await page.waitForTimeout(320);
+ await page.keyboard.up('w');
+ const walkEnd=await page.evaluate(()=>window.__FRACTURE3D__.playerBody.translation());
+ const cameraBasis=await page.evaluate(()=>window.__FRACTURE3D__.cameraOffset.toArray());
+ const moved=Math.hypot(walkEnd.x-walkStart.x,walkEnd.z-walkStart.z);
+ expect(moved).toBeGreaterThan(.40);
+ expect((walkEnd.x-walkStart.x)*cameraBasis[0]+(walkEnd.z-walkStart.z)*cameraBasis[2]).toBeLessThan(-.25);
+ console.log('CAMERA_RELATIVE_WASD',JSON.stringify({walkStart,walkEnd,moved}));
  await page.screenshot({path:'qa/rebuild/hub-real.png'});
  const origin=await page.evaluate(()=>{
   const a=window.__FRACTURE3D__;return a.playerBody.translation();
@@ -91,6 +105,17 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  await page.waitForTimeout(160);
  const after=await page.evaluate(()=>window.__FRACTURE3D__.enemyUnits.at(-1)?.hp);
  expect(after).toBeLessThan(target.hp);
+ const visualHit=await page.evaluate(()=>{
+  const g=window.__FRACTURE3D__;
+  return {hits:g.feedback?.hits,numbers:document.querySelectorAll('.fracture-damage').length,
+    particles:g.feedback?.particles.length,attackPose:g.attackPose,
+    selected:g.selectedClips,heroTilt:Math.abs(g.hero?.rotation.z||0)+Math.abs(g.hero?.rotation.x||0)};
+ });
+ expect(visualHit.hits).toBeGreaterThan(0);
+ expect(visualHit.numbers).toBeGreaterThan(0);
+ expect(visualHit.particles).toBeGreaterThan(0);
+ expect(visualHit.heroTilt).toBeGreaterThan(.01);
+ console.log('VISIBLE_CONTACT_FEEDBACK',JSON.stringify(visualHit));
  // Shooting is visibly different and has its own distinct sampled Web Audio cue.
  await page.evaluate(()=>{
    const g=window.__FRACTURE3D__,p=g.playerBody.translation();
@@ -126,6 +151,7 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  expect(gunResult.model).toBe(true);expect(gunResult.blade).toBe(false);
  expect(gunResult.attack).toBe('gun');expect(gunResult.sfx).toBe(true);
  expect(gunResult.tracer).toBe(true);
+ expect(await page.evaluate(()=>window.__FRACTURE3D__.feedback.hits)).toBeGreaterThanOrEqual(2);
  console.log('WEAPON_CAMERA_WALL_AUDIO_QA',JSON.stringify({rig,cameraBefore,cameraAfter,armed,gunResult}));
  await page.screenshot({path:'qa/rebuild/combat-real.png'});
  // Keep combat damage and extraction: pickup persists to safe hub.
