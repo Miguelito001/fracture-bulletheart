@@ -53,6 +53,15 @@ test('real Rapier 3D action dungeon: hub, passage collision, combat and extracti
  const walkStart=await page.evaluate(()=>window.__FRACTURE3D__.playerBody.translation());
  await page.keyboard.down('w');
  await page.waitForTimeout(320);
+ const liveMovement=await page.evaluate(()=>{
+   const g=window.__FRACTURE3D__,p=g.playerBody.translation(),basis=g.cameraOffset;
+   const wanted={x:-basis.x*.01,y:0,z:-basis.z*.01};
+   g.charController.computeColliderMovement(g.playerCollider,wanted);
+   return {mode:g.mode,keys:[...g.keys],velocity:g.velocity.toArray(),body:p,
+     wanted,computed:g.charController.computedMovement(),
+     isMoving:g.isMoving,blocked:g.wasBlocked,room:g.rooms[0].layout.rows[Math.round(p.z/2.35)]?.[Math.round(p.x/2.35)]};
+ });
+ console.log('MOVEMENT_DIAGNOSTIC',JSON.stringify(liveMovement));
  await page.keyboard.up('w');
  const walkEnd=await page.evaluate(()=>window.__FRACTURE3D__.playerBody.translation());
  const cameraBasis=await page.evaluate(()=>window.__FRACTURE3D__.cameraOffset.toArray());
