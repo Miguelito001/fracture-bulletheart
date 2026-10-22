@@ -4,6 +4,7 @@ import { calculatePlayerStats } from "../core/game";
 import { visibleCount } from "../core/fov";
 import { Tile, type EffectEvent, type GameState, type Item, type MonsterState, type ShrineState } from "../core/types";
 import { EffectLayer } from "./effects";
+import { resolveActorSpriteFrame } from "./actor-sprites";
 
 type Viewport = {
   width: number;
@@ -79,13 +80,42 @@ export class CanvasRenderer {
   private wallH = 96;
   private scale = 1;
   private cameraReady = false;
+  private readonly onResize = () => this.resize();
+  private lastRenderMs = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Canvas 2D context unavailable.");
     this.ctx = context;
     this.resize();
-    window.addEventListener("resize", () => this.resize());
+    window.addEventListener("resize", this.onResize);
+  }
+
+  getInputHit(clientX: number, clientY: number, state: GameState):
+    {type:"monster";id:string}|{type:"world";x:number;y:number}|null {
+    const rect = this.canvas.getBoundingClientRect();
+    const screenX = clientX - rect.left + this.cameraX;
+    const screenY = clientY - rect.top + this.cameraY;
+    let closest: {id:string;distance:number}|null = null;
+    for (const monster of state.monsters) {
+      if (monster.hp <= 0) continue;
+      const point = this.projectEntity(monster.x, monster.y);
+      const dist = Math.hypot((point.x - this.cameraX) - (clientX - rect.left),
+        (point.y - this.cameraY - this.tileW*.35) - (clientY - rect.top));
+      if (dist < this.tileW * .62 && (!closest || dist < closest.distance))
+        closest = {id:monster.id,distance:dist};
+    }
+    if (closest) return {type:"monster",id:closest.id};
+    // Inverse isometric projection; clicks use the EXACT Canvas2D camera.
+    const diff = (screenX * 2) / this.tileW;
+    const sum = (screenY * 2) / this.tileH;
+    return {type:"world",x:(sum + diff) / 2 - .5,y:(sum - diff) / 2 - .5};
+  }
+
+  fxSnapshot() { return this.effects.snapshot(); }
+
+  dispose(): void {
+    window.removeEventListener("resize", this.onResize);
   }
 
   loadAssets(atlas: LoadedAtlas): void {
@@ -93,7 +123,7 @@ export class CanvasRenderer {
   }
 
   resize(): void {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
     const width = Math.floor(window.innerWidth);
     const height = Math.floor(window.innerHeight);
     this.viewport = { width, height, dpr };
@@ -106,12 +136,15 @@ export class CanvasRenderer {
   }
 
   render(state: GameState, events: EffectEvent[], dt: number, now: number): void {
+    this.lastRenderMs = performance.now();
     this.effects.add(events);
     this.effects.update(dt, state.mode === "paused");
     state.debug.fps = Math.round(1000 / Math.max(1, dt));
     state.debug.frameMs = Math.round(dt * 10) / 10;
 
-    this.scale = clamp(Math.min(this.viewport.width / 1500, this.viewport.height / 860), 0.8, 1.18);
+    // This is actual Canvas 2D. Camera is tight enough to distinguish hero,
+    // enemy telegraphs and hit effects rather than displaying the whole room.
+    this.scale = clamp(Math.min(this.viewport.width / 1220, this.viewport.height / 740), 1.0, 1.4);
     this.tileW = 102 * this.scale;
     this.tileH = 51 * this.scale;
     this.wallH = 132 * this.scale;
@@ -124,8 +157,9 @@ export class CanvasRenderer {
       this.cameraY = targetY;
       this.cameraReady = true;
     } else {
-      this.cameraX += (targetX - this.cameraX) * 0.18;
-      this.cameraY += (targetY - this.cameraY) * 0.18;
+      const follow = 1 - Math.exp(-Math.max(0, Math.min(50, dt)) / 1000 * 13);
+      this.cameraX += (targetX - this.cameraX) * follow;
+      this.cameraY += (targetY - this.cameraY) * follow;
     }
 
     const ctx = this.ctx;
@@ -134,15 +168,20 @@ export class CanvasRenderer {
     ctx.fillRect(0, 0, this.viewport.width, this.viewport.height);
     this.drawBackdrop(ctx, now);
 
-    const shake = this.effects.offset(now);
     ctx.save();
-    ctx.translate(-this.cameraX + shake.x, -this.cameraY + shake.y);
+    // Keep camera stationary on impact, avoids motion sickness.
+    ctx.translate(-this.cameraX, -this.cameraY);
     this.drawWorld(ctx, state, now);
     ctx.restore();
 
     this.drawAtmosphericFog(ctx, now);
     this.drawScreenVignette(ctx);
     if (state.debug.enabled) this.drawDebugText(ctx, state);
+    state.debug.renderMs = Math.round((performance.now() - this.lastRenderMs) * 10) / 10;
+    state.debug.drawCalls = state.monsters.length + state.items.length + 1;
+    state.debug.objects = state.debug.drawCalls;
+    state.debug.animatedSprites = state.monsters.length + 1;
+    state.debug.particles = this.effects.snapshot().active;
   }
 
   private drawWorld(ctx: CanvasRenderingContext2D, state: GameState, now: number): void {
@@ -1068,7 +1107,8 @@ export class CanvasRenderer {
       monster.kind === "gutter-fiend"
         ? this.tileW * 0.9 * (monster.elite ? 1.14 : 1)
         : this.tileW * (monster.kind === "bone-warden" ? 1.22 : 1.28) * (monster.elite ? 1.15 : 1);
-    this.drawRasterSprite(ctx, rasterFrame, { x: p.x, y: p.y + bob + this.tileH * 0.16 }, rasterWidth, rasterHeight, monster.kind === "gutter-fiend" ? 0.72 : 0.9, {
+    const animated = resolveActorSpriteFrame(rasterFrame, monster.animation ?? "idle", monster.facing ?? 0, now).frameId;
+    this.drawRasterSprite(ctx, animated, { x: p.x, y: p.y + bob + this.tileH * 0.16 }, rasterWidth, rasterHeight, monster.kind === "gutter-fiend" ? 0.72 : 0.9, {
       alpha: 1,
       blend: "source-over",
       filter: this.actorFilter(visible)
@@ -1085,7 +1125,10 @@ export class CanvasRenderer {
   private drawPlayer(ctx: CanvasRenderingContext2D, state: GameState, p: IsoPoint, now: number): void {
     const bob = Math.sin(now / 180) * this.tileH * 0.025;
     this.drawShadow(ctx, p.x, p.y + this.tileH * 0.28, this.tileW * 0.32, this.tileH * 0.12, 0.66);
-    this.drawMaskedPlayerSprite(ctx, { x: p.x, y: p.y + bob + this.tileH * 0.22 }, this.tileW * 1.06, this.tileW * 1.2);
+    this.drawRasterSprite(ctx,
+      resolveActorSpriteFrame("sprite-player", state.player.animation ?? "idle", state.player.facing ?? 0, now).frameId,
+      {x:p.x,y:p.y+bob+this.tileH*.22}, this.tileW*1.06,this.tileW*1.2,.9,
+      {alpha:1,blend:"source-over",filter:this.actorFilter(true)});
     this.drawGroundingTint(ctx, p.x, p.y + this.tileH * 0.31, this.tileW * 0.56, this.tileH * 0.24, 0.52);
     this.drawRimLight(ctx, p, "#f2a84b", 0.88);
 
