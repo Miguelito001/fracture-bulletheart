@@ -7,6 +7,7 @@ import EasyStar from 'easystarjs';
 import { AudioBus } from './audio.js';
 import { screenRelativeInput,moveVelocity,wrapRotation,canStandAt } from './locomotion.js';
 import { CombatFeedback } from './feedback.js';
+import { GEAR,normalizeEquipment,setHandEquipment,hideEmbeddedEquipment,findHandBones } from './equipment.js';
 import { HUB, ROOMS, WIDTH, HEIGHT, TILE, chooseExpedition, validateBlueprint, worldX, worldZ } from './rooms.js';
 
 const $=(id)=>document.getElementById(id);
@@ -64,11 +65,11 @@ class Fracture {
   this.raycaster=new THREE.Raycaster();this.plane=new THREE.Plane(new THREE.Vector3(0,1,0),-.05);
   this.pointer=new THREE.Vector2(0,0);this.aim=new THREE.Vector3(1,0,0);
   this.keys=new Set();this.velocity=new THREE.Vector3();this.dashVector=new THREE.Vector3();this.pointerActive=false;this.attackPose=0;this.wasBlocked=false;this.mode='loading';this.progress=loadProgress();this.hp=100;this.maxHp=100;
-  this.weapon='blade';this.audio=new AudioBus();this.lastAttack='blade';this.potions=2;this.xp=0;this.level=1;this.materials={iron:0,embers:0};
+  this.equipment=normalizeEquipment(this.progress.equipment,this.progress.weapon);this.progress.equipment={...this.equipment};this.weapon=this.equipment.hand1;this.audio=new AudioBus();this.lastAttack='blade';this.potions=2;this.xp=0;this.level=1;this.materials={iron:0,embers:0};
   this.rooms=[];this.roomIndex=0;this.enemyUnits=[];this.drops=[];this.gates=[];this.statueActors=[];
   this.elapsed=0;this.hitCooldown=0;this.attackCooldown=0;this.dashCooldown=0;this.dashTime=0;this.invuln=0;
   this.cast=0;this.castOrigin=null;this.isMoving=false;this.killCount=0;this.fx=[];
-  this.solidBodies=[];this.lastFrame=0;this.lastInteraction='';this.cameraTarget=new THREE.Vector3();this.cameraOffset=new THREE.Vector3(14,18.4,16);this.cameraDeadZone=3.0;this.cameraFrozen=false;this.wallSegments=[];this.wallDescriptors=[];this.wallBatches=[];this.wallVisibilityKey=null;this.weaponKick=0;this.weaponRig=null;this.heroGun=null;this.stepTimer=0;
+  this.solidBodies=[];this.lastFrame=0;this.lastInteraction='';this.cameraTarget=new THREE.Vector3();this.cameraOffset=new THREE.Vector3(14,18.4,16);this.cameraDeadZone=3.0;this.cameraFrozen=false;this.wallSegments=[];this.wallDescriptors=[];this.wallBatches=[];this.wallVisibilityKey=null;this.weaponKick=0;this.weaponRig=null;this.weaponRigs={};this.handModels={};this.heroGun=null;this.stepTimer=0;this.inventoryOpen=false;this.embeddedGearHidden=[];
   this.errors=[];this.gameStarted=false;this.testMarker={engine:'Three.js',physics:'Rapier',rendering:'3D',assets:0,roomCount:0};
   this.lightGeometry=new THREE.SphereGeometry(.15,9,8);
   this.renderer.domElement.addEventListener('pointermove',e=>this.movePointer(e));
@@ -303,6 +304,7 @@ class Fracture {
   this.solidBodies=[];
  }
  clearWorld(){
+  if(this.inventoryOpen)this.toggleInventory();
   if(this.worldGroup){this.scene.remove(this.worldGroup);this.worldGroup.traverse(o=>{if(o.geometry&&!this.assets.has(o.userData.assetId)){
     // Imported geometries stay cached, so avoid disposing shared glTF geometry.
    }});}
@@ -320,13 +322,28 @@ class Fracture {
   // Centre camera instantly after world transitions, avoiding an offscreen spawn.
   this.cameraTarget.set(x,.8,z);this.camera.position.copy(this.cameraTarget).add(this.cameraOffset);this.camera.lookAt(this.cameraTarget);
   const setup=this.configureAnimations(root,'kay-knight');this.heroMixer=setup.mixer;this.heroAnimations=setup.actions;this.heroAnimationState='idle';
-  const hand=(()=>{let bone=null;root.traverse(o=>{if(/handslot[._]?r|hand[._]?r/i.test(o.name))bone ||= o;});return bone;})();
-  this.weaponRig=new THREE.Group();(hand||root).add(this.weaponRig);
-  this.heroSword=this.meshModel('weapon-sword',0,0,.38,{group:this.weaponRig});
-  this.heroGun=this.meshModel('blaster-g',0,0,.48,{group:this.weaponRig});
-  if(this.heroSword){this.heroSword.position.set(.12,.02,0);this.heroSword.rotation.set(Math.PI/2,0,0);}
-  if(this.heroGun){this.heroGun.position.set(.10,-.03,0);this.heroGun.rotation.set(0,Math.PI/2,0);}
-  this.selectWeapon(this.weapon,true);
+  // Source model's decorative starter weapons are not equipment.
+  this.embeddedGearHidden=hideEmbeddedEquipment(root);
+  const bones=findHandBones(root);
+  this.weaponRigs={};this.handModels={};
+  for(const hand of ['hand1','hand2']){
+   const joint=bones[hand]||root,mount=new THREE.Group();
+   mount.name='Equipped:'+hand;joint.add(mount);
+   if(joint===root)mount.position.set(hand==='hand1'?.28:-.28,1.13,.34);
+   else{
+    joint.updateWorldMatrix(true,false);const scale=joint.getWorldScale(new THREE.Vector3());
+    mount.scale.set(1/Math.max(.001,Math.abs(scale.x)),1/Math.max(.001,Math.abs(scale.y)),1/Math.max(.001,Math.abs(scale.z)));
+   }
+   const blade=this.meshModel(GEAR.blade.model,0,0,.39,{group:mount});
+   const gun=this.meshModel(GEAR.gun.model,0,0,.50,{group:mount});
+   if(blade){blade.position.set(.11,.055,0);blade.rotation.set(Math.PI/2,0,0);}
+   if(gun){gun.position.set(.10,-.02,.03);gun.rotation.set(0,Math.PI/2,0);}
+   this.weaponRigs[hand]=mount;this.handModels[hand]={blade,gun};
+  }
+  this.weaponRig=this.weaponRigs.hand1;
+  this.heroSword=this.handModels.hand1.blade;this.heroGun=this.handModels.hand1.gun;
+  this.syncEquippedVisuals();
+  this.equipmentDebug={boneNames:{hand1:bones.hand1?.name||null,hand2:bones.hand2?.name||null},hidden:this.embeddedGearHidden};
  }
  openHub(){
   this.clearWorld();this.scene.fog.color.setHex(PALETTE.sanctuary.fog);
@@ -365,7 +382,7 @@ class Fracture {
   }
  }
  pointerDown(e){if(this.mode!=='playing')return;if(e.button===0)this.attack();if(e.button===2)this.attack(true);}
- keyDown(e){if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();this.keys.add(e.code);
+ keyDown(e){if(e.code==='KeyI'){e.preventDefault();this.toggleInventory();return;}if(this.inventoryOpen){if(e.code==='Escape')this.toggleInventory();return;}if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();this.keys.add(e.code);
   if(e.repeat)return;
   if(e.code==='Escape'){if(this.mode==='playing')this.setMode('paused');else if(this.mode==='paused')this.setMode(this.worldType==='hub'?'hub':'playing');}
   if(e.code==='KeyE')this.interact();
@@ -379,12 +396,58 @@ class Fracture {
   else if(name==='blade'||name==='gun')this.selectWeapon(name);
   else if(name==='pause'){if(this.mode==='paused')this.setMode(this.worldType==='hub'?'hub':'playing');else if(this.mode==='playing')this.setMode('paused');}
  }
- selectWeapon(kind,silent=false){
-  this.weapon=kind==='gun'?'gun':'blade';
-  if(this.heroSword)this.heroSword.visible=this.weapon==='blade';
-  if(this.heroGun)this.heroGun.visible=this.weapon==='gun';
-  this.weaponKick=0;
-  if(!silent){this.audio.play('pickup');this.updateHUD();}
+ syncEquippedVisuals(){
+  this.equipment=normalizeEquipment(this.equipment,this.weapon);
+  const visible={};
+  for(const hand of ['hand1','hand2']){
+   visible[hand]=[];
+   for(const [item,mesh] of Object.entries(this.handModels[hand]||{})){
+    if(!mesh)continue;
+    mesh.visible=this.equipment[hand]===item;
+    if(mesh.visible)visible[hand].push(item);
+   }
+  }
+  this.equipmentVisualState=visible;this.weapon=this.equipment.hand1;
+  return visible;
+ }
+ equipHand(hand,item,silent=false){
+  if(!setHandEquipment(this.equipment,hand,item))return false;
+  this.weapon=this.equipment.hand1;
+  this.progress.equipment={...this.equipment};this.progress.weapon=this.weapon;
+  this.syncEquippedVisuals();
+  if(!silent){this.audio.play('pickup');this.save();this.updateHUD();}
+  if(this.inventoryOpen)this.renderInventory();
+  return true;
+ }
+ selectWeapon(kind,silent=false){return this.equipHand('hand1',kind,silent);}
+ toggleInventory(){
+  this.inventoryOpen=!this.inventoryOpen;
+  if(!this.inventoryPanel){
+   this.inventoryPanel=document.createElement('section');this.inventoryPanel.id='equipment-inventory';
+   this.inventoryPanel.setAttribute('aria-label','Inventário e equipamentos');
+   document.body.appendChild(this.inventoryPanel);
+   this.inventoryPanel.addEventListener('click',event=>{
+    const button=event.target.closest('[data-equip-hand]');
+    if(button)this.equipHand(button.dataset.equipHand,button.dataset.itemId==='none'?null:button.dataset.itemId);
+    else if(event.target.closest('[data-close-equipment]'))this.toggleInventory();
+   });
+  }
+  this.inventoryPanel.classList.toggle('hidden',!this.inventoryOpen);
+  this.renderInventory();
+ }
+ renderInventory(){
+  if(!this.inventoryPanel)return;
+  const option=(hand,item)=>{
+   const value=item||'none',label=item?GEAR[item].label:'Vazio';
+   const selected=this.equipment[hand]===item;
+   return `<button data-equip-hand="${hand}" data-item-id="${value}" class="${selected?'selected':''}" aria-pressed="${selected}">${label}</button>`;
+  };
+  this.inventoryPanel.innerHTML=`<div class="equipment-window">
+   <header><h2>Inventário · Equipamento</h2><button data-close-equipment aria-label="Fechar inventário">✕</button></header>
+   <p>Somente o que está equipado aparece nas mãos. Nenhum escudo automático.</p>
+   <div class="hand-slot"><strong>MÃO 1 · ARMA ATIVA</strong><div>${option('hand1','blade')}${option('hand1','gun')}</div></div>
+   <div class="hand-slot"><strong>MÃO 2 · EQUIPAMENTO SECUNDÁRIO</strong><div>${option('hand2',null)}${option('hand2','blade')}${option('hand2','gun')}</div></div>
+   <small>1 e 2 trocam a arma da mão 1 · I abre/fecha · Esc fecha</small></div>`;
  }
  near(x,z,r=2.9){const p=this.playerBody.translation();return Math.hypot(p.x-x,p.z-z)<=r;}
  nearestStation(){
