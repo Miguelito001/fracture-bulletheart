@@ -48,7 +48,7 @@ function loadProgress(){
 class Fracture {
  constructor(){
   this.renderer=new THREE.WebGLRenderer({canvas:$('scene'),antialias:true,powerPreference:'high-performance'});
-  this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));this.renderer.setSize(innerWidth,innerHeight);
+  this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.35));this.renderer.setSize(innerWidth,innerHeight);
   this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.92;
   this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#0d1422');this.scene.fog=new THREE.FogExp2(0x101a28,.009);
@@ -58,7 +58,7 @@ class Fracture {
   this.worldGroup=null;this.actorGroup=new THREE.Group();this.scene.add(this.actorGroup);
   this.scene.add(new THREE.HemisphereLight(0xb8d8ff,0x222536,1.02));
   this.sun=new THREE.DirectionalLight(0xffe2b9,1.9);this.sun.position.set(-15,28,18);
-  this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);
+  this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);
   this.sun.shadow.camera.left=-75;this.sun.shadow.camera.right=75;this.sun.shadow.camera.top=75;this.sun.shadow.camera.bottom=-75;
   this.sun.shadow.bias=-.00035;this.scene.add(this.sun);this.lights=[];
   this.raycaster=new THREE.Raycaster();this.plane=new THREE.Plane(new THREE.Vector3(0,1,0),-.05);
@@ -108,7 +108,7 @@ class Fracture {
   }catch(error){this.errors.push(String(error));$('loading').textContent='Erro ao carregar: '+error.message;console.error(error);}
  }
  resize(){
-  this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.7));this.renderer.setSize(innerWidth,innerHeight);
+  this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.35));this.renderer.setSize(innerWidth,innerHeight);
   const halfH=8.0,halfW=halfH*innerWidth/Math.max(1,innerHeight);
   this.camera.left=-halfW;this.camera.right=halfW;this.camera.top=halfH;this.camera.bottom=-halfH;
   this.camera.updateProjectionMatrix();
@@ -137,6 +137,48 @@ class Fracture {
   if(physical){this.solid(x,Math.max(.2,clone.position.y+size.y/2),z,Math.max(.22,size.x/2*colliderScale),Math.max(.40,size.y/2),Math.max(.22,size.z/2*colliderScale));}
   return clone;
  }
+ // Three.js InstancedMesh replaces hundreds of identical GLB clones with
+ // one draw submission per source mesh and tile variant. The models stay
+ // genuine CC0 Kenney assets, including their original geometry/materials.
+ makeInstancedFloors(worldRooms){
+  const buckets=new Map();
+  for(const room of worldRooms){
+   const origin=room.index*(WIDTH+5)*TILE;
+   for(let z=0;z<HEIGHT;z++)for(let x=0;x<WIDTH;x++){
+    if(room.layout.rows[z][x]==='#')continue;
+    const name=(x+z+room.index)%17===0?'kd-floor-broken':
+      (x*3+z*7+room.index)%12===0?'kd-floor-decor':'kd-floor';
+    if(!buckets.has(name))buckets.set(name,[]);
+    buckets.get(name).push([origin+x*TILE,z*TILE]);
+   }
+  }
+  this.instancedFloorCount=0;
+  for(const [name,positions] of buckets){
+   const source=this.assets.get(name);if(!source||!positions.length)continue;
+   const prototype=source.clone(true);
+   prototype.updateMatrixWorld(true);
+   const bounds=new THREE.Box3().setFromObject(prototype),size=bounds.getSize(new THREE.Vector3());
+   const scale=TILE*1.02/Math.max(.001,size.x,size.z);
+   prototype.scale.multiplyScalar(scale);prototype.updateMatrixWorld(true);
+   const bbox=new THREE.Box3().setFromObject(prototype),centre=bbox.getCenter(new THREE.Vector3());
+   prototype.position.set(-centre.x,-bbox.min.y,-centre.z);prototype.updateMatrixWorld(true);
+   prototype.traverse(mesh=>{
+    if(!mesh.isMesh||!mesh.geometry)return;
+    const batch=new THREE.InstancedMesh(mesh.geometry,mesh.material,positions.length);
+    batch.castShadow=false;batch.receiveShadow=true;
+    batch.frustumCulled=false;
+    const placement=new THREE.Matrix4(),computed=new THREE.Matrix4();
+    for(let i=0;i<positions.length;i++){
+     const [x,z]=positions[i];placement.makeTranslation(x,0,z);
+     computed.multiplyMatrices(placement,mesh.matrixWorld);
+     batch.setMatrixAt(i,computed);
+    }
+    batch.instanceMatrix.needsUpdate=true;
+    this.worldGroup.add(batch);
+    this.instancedFloorCount+=positions.length;
+   });
+  }
+ }
  makeTerrain(worldRooms){
   const floorMaterial=mat(0x636e7b,{roughness:.93});
   // Shared instanced flagstone seams make room geometry readable without adding
@@ -152,6 +194,7 @@ class Fracture {
     allSeams.setMatrixAt(allSeams.count++,mtx);
   };
   this.worldGroup.add(allSeams);
+  this.makeInstancedFloors(worldRooms);
   for(const room of worldRooms){
    const {layout,index}=room,theme=PALETTE[layout.theme]||PALETTE.crypt;
    const ox=index*(WIDTH+5)*TILE;
@@ -161,10 +204,7 @@ class Fracture {
     if(ch!=='#'){
      roomFloor++;
      // Kenney's real stone GLB floors, not a painted Canvas diamond.
-     const floorName=(x+z+index)%17===0?'kd-floor-broken':(x*3+z*7+index)%12===0?'kd-floor-decor':'kd-floor';
-     const tile=this.meshModel(floorName,wx,wz,TILE*1.02);
-     if(tile){tile.traverse(o=>{if(o.isMesh)o.receiveShadow=true;});}
-     this.solid(wx,-.58,wz,TILE*.51,.49,TILE*.51);
+     // GLB stone is rendered by makeInstancedFloors(); no per-tile clone.
      if((x+z)%3!==0){writeSeam(wx,wz+TILE*.48,false);writeSeam(wx+TILE*.48,wz,true);}
      if((x*11+z*7+index)%17===0){this.meshModel('stones',wx+.28,wz-.38,TILE*.31,{height:.05});}
      if(ch==='b'){this.meshModel(layout.theme==='treasure'?'kd-chest':layout.theme==='ossuary'?'grave-coffin':'kd-barrel',wx,wz,TILE*.77,{physical:true,colliderScale:.96});}
@@ -195,6 +235,10 @@ class Fracture {
      }
     }
    }
+   // One static ground body per room, instead of hundreds of tiny physics
+   // cuboids. The authored tile mask still rejects movement onto void cells.
+   this.solid(ox+(WIDTH-1)*TILE*.5,-.58,(HEIGHT-1)*TILE*.5,
+    WIDTH*TILE*.5,.49,HEIGHT*TILE*.5);
    if(roomFloor<110)throw Error('A sala '+layout.id+' é pequena demais');
    // Wall-mounted architecture: torches, banners, stone sculptures (CC0).
    for(const [x,z,name] of [[2,1,'banner'],[WIDTH-3,1,'banner'],[3,HEIGHT-2,'rocks'],[WIDTH-4,HEIGHT-2,'rocks']]){
@@ -698,7 +742,7 @@ class Fracture {
    });
   }
  }
- frame(){let dt=CLAMP(this.clock.getDelta(),0,1/30);
+ frame(){this.renderedFrames=(this.renderedFrames||0)+1;let dt=CLAMP(this.clock.getDelta(),0,1/30);
   this.elapsed+=dt;this.hitCooldown=Math.max(0,this.hitCooldown-dt);this.attackCooldown=Math.max(0,this.attackCooldown-dt);
   this.dashCooldown=Math.max(0,this.dashCooldown-dt);this.invuln=Math.max(0,this.invuln-dt);
   if(this.mode==='hub'||this.mode==='playing'){
