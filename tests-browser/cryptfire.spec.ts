@@ -46,6 +46,20 @@ test('real open-source dungeon: startup, authored scene, enemies, frame renderin
  }
  expect(actualTravel).toBeGreaterThan(0.1);
  console.log('MOVEMENT_HUD_QA',JSON.stringify({hud,start,movementSamples,actualTravel}));
+ const pixelArt=await page.evaluate(async ()=>{
+  const image=new Image();image.src='/pixel/knight_m_idle_anim_f0.png';
+  await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(Error('Missing CC0 hero sprite'));});
+  const floor=new Image();floor.src='/pixel/floor_1.png';
+  await new Promise((resolve,reject)=>{floor.onload=resolve;floor.onerror=()=>reject(Error('Missing CC0 floor tile'));});
+  const canvas=document.querySelector('#game-canvas') as HTMLCanvasElement;
+  const ctx=canvas.getContext('2d');const imageData=ctx?.getImageData(canvas.width/2|0,canvas.height/2|0,1,1);
+  return {hero:[image.naturalWidth,image.naturalHeight],floor:[floor.naturalWidth,floor.naturalHeight],
+    center:imageData?Array.from(imageData.data):[],renderer:ctx?'canvas2d':'other'};
+ });
+ expect(pixelArt.hero[0]).toBeGreaterThanOrEqual(16);
+ expect(pixelArt.floor[0]).toBeGreaterThanOrEqual(16);
+ expect(pixelArt.renderer).toBe('canvas2d');
+ console.log('REAL_CC0_PIXEL_RENDER_QA',JSON.stringify(pixelArt));
  await page.screenshot({path:'qa/cryptfire-gameplay.png',fullPage:true});
  expect(errors).toEqual([]);
  console.log('CRYPTFIRE_QA',JSON.stringify({before:before.state,metrics}));

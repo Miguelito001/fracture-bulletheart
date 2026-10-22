@@ -74,3 +74,21 @@ button{font-family:system-ui!important;letter-spacing:0!important}
  .hotbar button::before{width:23px!important;height:20px!important}
  .message-log{bottom:72px!important;max-width:85vw!important;width:max-content!important}
 }
+
+/* Purge every painted raster icon from the old UI; only pixel pack sprites remain. */
+.hotbar button{font:800 10px/1.15 system-ui!important;color:#cce8dd!important;padding-top:27px!important;
+ text-shadow:none!important}
+.hotbar button::before{content:attr(data-key)!important;top:4px!important;
+ color:#96e9d4!important;background:none!important;border:0!important;
+ box-shadow:none!important;display:grid!important;place-items:center!important;
+ font:900 17px/1 monospace!important}
+.hotbar button::after{display:none!important}
+.equipment-slot::before,.inventory-item::before{background:#102330!important;
+ border:1px solid #436069!important;box-shadow:none!important}
+[data-frame="loot-weapon"]::before{background:url("/pixel/weapon_regular_sword.png") center/contain no-repeat!important}
+[data-frame="loot-potion"]::before{background:url("/pixel/flask_red.png") center/contain no-repeat!important}
+[data-frame="loot-gold"]::before{background:url("/pixel/coin_anim_f0.png") center/contain no-repeat!important}
+[data-frame="loot-armor"]::before{background:url("/pixel/knight_m_idle_anim_f0.png") center/contain no-repeat!important}
+[data-frame="loot-charm"]::before{background:url("/pixel/flask_blue.png") center/contain no-repeat!important}
+.modal-card,.pause-card,.death-card,.choice{background:linear-gradient(135deg,#152636,#0a1824)!important;
+ border:1px solid #52757a!important;color:#d9e8df!important;border-radius:8px!important}
