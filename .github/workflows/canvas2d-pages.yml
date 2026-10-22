@@ -1,7 +1,5 @@
 name: FRACTURE 2D — public GitHub Pages
 on:
-  push:
-    branches: [feature/fracture-canvas2d]
   workflow_dispatch:
 permissions:
   contents: read
