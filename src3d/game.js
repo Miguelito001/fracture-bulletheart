@@ -517,7 +517,10 @@ class Fracture {
   this.pulse(p.x,p.z,0x8bdfed,1.8);
  }
  attack(forceGun=false){if(this.mode!=='playing'||this.attackCooldown>0)return;
-  const gun=forceGun||this.weapon==='gun',range=gun?13.5:3.0,angle=gun?.36:1.05;
+  if(forceGun&&this.equipment.hand2!=='gun'&&this.weapon!=='gun')return;
+  const gun=this.weapon==='gun'||(forceGun&&this.equipment.hand2==='gun');
+  this.attackHand=forceGun&&this.equipment.hand2==='gun'?'hand2':'hand1';
+  const range=gun?13.5:3.0,angle=gun?.36:1.05;
   this.attackCooldown=gun?.46:.39;this.lastAttack=gun?'gun':'blade';this.weaponKick=gun?1:.6;
   this.attackPoseLength=gun?.32:.38;this.attackPose=this.attackPoseLength;
   this.audio.play(gun?'gun':'sword');
@@ -811,13 +814,15 @@ class Fracture {
       (this.lastAttack==='gun'?swing*.17:-swing*.14):0,22,dt);
    }
    this.weaponKick=Math.max(0,this.weaponKick-dt*4.7);
-   if(this.weaponRig){
-    const sword=active&&this.lastAttack==='blade';
-    const shot=active&&this.lastAttack==='gun';
-    this.weaponRig.rotation.z=THREE.MathUtils.damp(this.weaponRig.rotation.z,
-      sword?-.95+u*1.85:shot?-.34*swing:0,29,dt);
-    this.weaponRig.rotation.x=THREE.MathUtils.damp(this.weaponRig.rotation.x,sword?.40*swing:shot?-.26*swing:0,25,dt);
-    this.weaponRig.position.z=shot?-.16*swing:0;
+   // Animation is applied to the hand currently executing the attack.
+   for(const [hand,rig] of Object.entries(this.weaponRigs)){
+    if(!rig)continue;
+    const activeHand=hand===this.attackHand;
+    const sword=activeHand&&active&&this.lastAttack==='blade';
+    const shot=activeHand&&active&&this.lastAttack==='gun';
+    rig.rotation.z=THREE.MathUtils.damp(rig.rotation.z,sword?-.95+u*1.85:shot?-.34*swing:0,29,dt);
+    rig.rotation.x=THREE.MathUtils.damp(rig.rotation.x,sword?.40*swing:shot?-.26*swing:0,25,dt);
+    rig.position.z=shot?-.16*swing:0;
    }
   }
   for(const e of this.enemyUnits){const t=e.body.translation();e.x=t.x;e.z=t.z;e.visual.position.set(t.x,0,t.z);
