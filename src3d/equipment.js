@@ -45,16 +45,21 @@ export function hideEmbeddedEquipment(root){
   return hidden;
 }
 export function findHandBones(root){
-  const bones=[];
-  root.traverse(node=>{if(node.isBone||/hand[._-]?(r|l)|hand[._-]?(right|left)/i.test(node.name||''))bones.push(node);});
-  const rank=(n,side)=>{
-    const str=(n.name||'').toLowerCase();
-    if(!/hand|wrist/.test(str))return -100;
-    const right=side==='hand1',match=right?/(hand.*(?:right|[._-]r$)|(?:right|[._-]r).*hand)/:/(hand.*(?:left|[._-]l$)|(?:left|[._-]l).*hand)/;
-    const mismatch=right?/(left|[._-]l$)/:/(right|[._-]r$)/;
-    return (match.test(str)?100:0)-(mismatch.test(str)?120:0)+(n.isBone?30:0)-(str.includes('index')||str.includes('thumb')?15:0);
+  // KayKit ships named animated attachment sockets, e.g. "handslot.r".
+  // Prefer them over a generic hand bone: their exported transform is
+  // authored specifically for held items and avoids incorrect grip offsets.
+  const candidates=[];
+  root.traverse(node=>{if(node.isBone||/handslot|hand|wrist/i.test(node.name||''))candidates.push(node);});
+  const rating=(node,side)=>{
+   const name=(node.name||'').toLowerCase();
+   const right=side==='hand1';
+   const correct=right?/(?:[._-]r$|right$|right[_-])/i:/(?:[._-]l$|left$|left[_-])/i;
+   const wrong=right?/(?:[._-]l$|left$|left[_-])/i:/(?:[._-]r$|right$|right[_-])/i;
+   if(!/hand|wrist/.test(name)||wrong.test(name))return -1000;
+   return (correct.test(name)?1000:0)+(/handslot/.test(name)?500:0)+(node.isBone?100:0);
   };
-  const select=side=>[...bones].sort((a,b)=>rank(b,side)-rank(a,side))[0]||null;
-  const a=select('hand1'),b=select('hand2');
-  return {hand1:a&&rank(a,'hand1')>0?a:null,hand2:b&&rank(b,'hand2')>0?b:null};
+  const best=side=>[...candidates].sort((a,b)=>rating(b,side)-rating(a,side))[0]||null;
+  const right=best('hand1'),left=best('hand2');
+  return {hand1:right&&rating(right,'hand1')>0?right:null,
+          hand2:left&&rating(left,'hand2')>0?left:null};
 }
