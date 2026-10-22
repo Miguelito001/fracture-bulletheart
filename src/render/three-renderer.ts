@@ -269,6 +269,10 @@ export class ThreeRenderer {
   private qualityScale = 1;
   private slowRenderStreak = 0;
   private softwareRenderer = false;
+  private readonly monsterBars=new Map<string,{
+    group:THREE.Group;back:THREE.Sprite;fill:THREE.Sprite;
+    hp:number;visibleUntil:number;
+  }>();
   private cameraFocus = new THREE.Vector3();
   private cameraInitialized = false;
   private readonly followOffset = new THREE.Vector3();
@@ -327,6 +331,7 @@ export class ThreeRenderer {
     this.clearGroup(this.dynamicWorld);
     this.spriteRecords.clear();
     this.beamRecords.clear();
+    this.clearMonsterBars();
     this.pendingDynamicGroundGlows.length = 0;
     this.staticBuilt = false;
   }
@@ -3037,6 +3042,7 @@ export class ThreeRenderer {
         state.player
       );
       liveKeys.add(key);
+      this.syncMonsterHealth(monster,height,state.player.targetActorId===monster.id,now);
       if (
         monster.elite ||
         wounded ||
@@ -3188,6 +3194,13 @@ export class ThreeRenderer {
       }
     }
 
+    const surviving=new Set(state.monsters.map(monster=>monster.id));
+    for(const [id,bar] of this.monsterBars){
+      if(surviving.has(id))continue;
+      this.dynamicWorld.remove(bar.group);
+      bar.back.material.dispose();bar.fill.material.dispose();
+      this.monsterBars.delete(id);
+    }
     for (const key of [...this.spriteRecords.keys()]) {
       if (!liveKeys.has(key)) this.removeSpriteRecord(key);
     }
@@ -3197,6 +3210,46 @@ export class ThreeRenderer {
       this.beamRecords.delete(key);
     }
     this.flushDynamicGroundGlows();
+  }
+
+  private syncMonsterHealth(monster:MonsterState,height:number,selected:boolean,now:number):void {
+    let bar=this.monsterBars.get(monster.id);
+    if(!bar){
+      const back=new THREE.Sprite(new THREE.SpriteMaterial({
+        color:0x090d12,opacity:.88,transparent:true,depthWrite:false,depthTest:false
+      }));
+      const fill=new THREE.Sprite(new THREE.SpriteMaterial({
+        color:0xef8c62,opacity:.98,transparent:true,depthWrite:false,depthTest:false
+      }));
+      const group=new THREE.Group();
+      back.position.z=0;fill.position.z=.025;
+      group.add(back,fill);this.dynamicWorld.add(group);
+      bar={group,back,fill,hp:monster.hp,visibleUntil:0};
+      this.monsterBars.set(monster.id,bar);
+    }
+    if(monster.hp<bar.hp){
+      bar.visibleUntil=now+2100;
+    }
+    bar.hp=monster.hp;
+    const show=selected||!!monster.elite||now<bar.visibleUntil;
+    bar.group.visible=show;
+    if(!show)return;
+    const pos=this.toWorld(monster);
+    bar.group.position.set(pos.x,height+.34,pos.z);
+    const health=Math.max(0,Math.min(1,monster.hp/Math.max(1,monster.maxHp)));
+    bar.back.scale.set(1.12,.13,1);
+    bar.fill.scale.set(Math.max(.005,1.06*health),.075,1);
+    bar.fill.position.x=-(1.06*(1-health))/2;
+    const material=bar.fill.material as THREE.SpriteMaterial;
+    material.color.setHex(selected?0xffcf7d:health<.3?0xe65353:monster.elite?0xb49cf4:0xe58e60);
+  }
+
+  private clearMonsterBars():void {
+    for(const bar of this.monsterBars.values()){
+      this.dynamicWorld.remove(bar.group);
+      bar.back.material.dispose();bar.fill.material.dispose();
+    }
+    this.monsterBars.clear();
   }
 
   private lootDramaColor(item: Item): number {
