@@ -6,6 +6,16 @@ test('real open-source dungeon: startup, authored scene, enemies, frame renderin
  await page.goto('/',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>Boolean((window as any).__torchlineQa?.state()?.player),{timeout:80000});
  await expect(page.locator('#game-canvas')).toBeVisible();
+ const graphics=await page.evaluate(()=>{
+   const canvas=document.querySelector('#game-canvas') as HTMLCanvasElement;
+   return {renderer:(window as any).__torchlineQa?.renderer,
+      canvas2d:!!canvas.getContext('2d'),webgl:!!canvas.getContext('webgl'),
+      width:canvas.width,height:canvas.height};
+ });
+ expect(graphics.renderer).toBe('canvas2d');
+ expect(graphics.canvas2d).toBe(true);
+ expect(graphics.webgl).toBe(false);
+ console.log('CANVAS2D_PROOF',JSON.stringify(graphics));
  await expect(page.locator('#hud')).toBeVisible();
  const before=await page.evaluate(()=>{const qa=(window as any).__torchlineQa;return {state:qa.state(),metrics:qa.metrics()};});
  expect(before.state.player.hp).toBeGreaterThan(0);
@@ -14,6 +24,7 @@ test('real open-source dungeon: startup, authored scene, enemies, frame renderin
  await page.waitForTimeout(1600);
  const metrics=await page.evaluate(()=>(window as any).__torchlineQa.metrics());
  expect(metrics.drawCalls).toBeGreaterThan(0);
+ expect(metrics.animatedSprites).toBeGreaterThan(1);
  // Desktop is a combat HUD, not two permanently open menus.
  const hud = await page.evaluate(() => ({
    pack: getComputedStyle(document.querySelector('#pack-panel')!).display,
