@@ -1344,3 +1344,58 @@ h2 {
     grid-template-columns: 1fr;
   }
 }
+
+/* FRACTURE: CRYPTFIRE — PLAYABILITY FIRST, HUD IS NOT A SIDE MENU.
+   Camera owns the scene; panels never steal 30% of the level. */
+@media (min-width: 821px) {
+  .hud {display:block; padding:0; overflow:visible;}
+  .hud::before {background:none;box-shadow:none;}
+  .panel-stats {
+    position:fixed; left:16px; top:14px; width:232px;
+    min-height:0; max-height:none; padding:12px 13px 10px;
+    background:linear-gradient(140deg,rgba(14,18,22,.94),rgba(6,8,11,.90));
+    backdrop-filter:blur(8px);
+    box-shadow:0 8px 28px rgba(0,0,0,.5);
+  }
+  .panel-stats .portrait-shell,.panel-stats .stat-list,
+  .panel-stats .buff-list,.panel-stats .left-emblems {display:none;}
+  .panel-stats h1 {font-size:17px;line-height:1.15;margin:0 0 3px;}
+  .panel-stats .small-label {font-size:10px;margin:2px 0 10px;}
+  .panel-stats .meter-row {font-size:12px;margin:5px 0 3px;}
+  .panel-stats .meter {height:9px;margin:0 0 3px;}
+  .panel-pack {display:none;position:fixed;right:14px;top:64px;bottom:85px;
+    width:335px;max-height:calc(100vh - 148px);padding:16px;z-index:8;
+    grid-template-rows:auto auto auto minmax(80px,1fr) auto auto auto 148px;
+    overflow:auto;background:rgba(9,12,17,.97);backdrop-filter:blur(9px);}
+  .hud.pack-open .panel-pack {display:grid;}
+  .mobile-pack-toggle {display:grid;place-items:center;position:fixed;top:16px;right:16px;
+    width:112px;height:38px;padding:7px 13px;background:rgba(10,15,20,.94);
+    border:1px solid rgba(225,167,77,.56);font:700 12px system-ui;
+    text-transform:uppercase;letter-spacing:.08em;color:#e9cc97;z-index:10;}
+  .mobile-pack-toggle::after {content:" [I]";margin-left:3px;color:#eddba5}
+  .hotbar {position:fixed;bottom:13px;left:50%;transform:translateX(-50%);
+    width:max-content;max-width:calc(100vw - 34px);display:flex;grid-template-columns:none;
+    gap:6px;padding:7px 12px 9px;background:rgba(8,12,16,.93);
+    border:1px solid rgba(213,162,89,.44);box-shadow:0 4px 24px #0009;
+    align-items:center;justify-content:center;z-index:3;}
+  .hotbar button {width:53px;min-width:53px;height:52px;min-height:52px;
+    padding:7px 3px;font-size:10px;}
+  .hotbar button::before {width:32px;height:28px;}
+  .hotbar button::after {font-size:10px;}
+  .message-log {position:fixed;bottom:16px;left:16px;
+    width:min(310px,26vw);min-height:0;max-height:83px;
+    padding:9px 10px;overflow:hidden;font:12px/1.35 system-ui;
+    background:rgba(9,12,15,.82);border-color:rgba(212,160,74,.23);}
+  .debug-overlay {z-index:12}
+}
+@media (max-width: 820px) {
+  .hud::before {background:none;}
+  .panel-stats {top:8px;left:8px;right:auto;width:min(76vw,304px);
+    max-height:none;padding:8px;grid-template-columns:1fr 1fr;
+    background:rgba(9,12,15,.93);}
+  .panel-stats .stat-list {display:none}
+  .mobile-pack-toggle {top:10px;right:8px}
+  .panel-pack {top:65px;bottom:115px;}
+  .hotbar {bottom:7px;}
+  .message-log {bottom:116px;max-height:34px;min-height:0;line-height:1.1;opacity:.88;}
+}
