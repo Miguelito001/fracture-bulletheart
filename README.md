@@ -4,7 +4,7 @@ A **playable open-source-based action RPG** for the browser. Rebuilt with the te
 
 Gothic dungeon with an authored architectural layout, mouse pathfinding, WASD secondary movement, hit feedback, real-time enemy combat, animations in eight directions, equipment, inventory, loot, shrines, upgrades, local sound, floors and local saves.
 
-**Controls:** Click ground to move; click an enemy to attack; Shift attack; Space special; Q potion; E stairs; F shrine; I inventory; P/Escape pause; R restart. WASD/arrow keys for alternate movement.
+**Controls:** Click ground to move; click an enemy to attack; Shift attack; Space dodge (brief i-frames); C ember burst; Q potion; E stairs; F shrine; I inventory; P/Escape pause; R restart. WASD/arrow keys for alternate movement.
 
 **Run:** `npm install && npm run dev`
 
