@@ -4,13 +4,13 @@ import { TorchlineGame } from "../core/game";
 describe("FRACTURE playable controls", () => {
  it("W is screen-up, D is screen-right, and diagonals have normalized speed", () => {
   const w=movementVector(new Set(["w"])),d=movementVector(new Set(["d"]));
-  expect(w.x).toBeLessThan(0);expect(w.y).toBeLessThan(0);
-  expect(d.x).toBeGreaterThan(0);expect(d.y).toBeLessThan(0);
+  expect(w.x).toBeCloseTo(0,6);expect(w.y).toBeLessThan(0);
+  expect(d.x).toBeGreaterThan(0);expect(d.y).toBeCloseTo(0,6);
   expect(Math.hypot(w.x,w.y)).toBeCloseTo(1,6);
   expect(Math.abs(w.x*d.x+w.y*d.y)).toBeLessThan(0.001);
   const wd=movementVector(new Set(["w","d"]));
   expect(Math.hypot(wd.x,wd.y)).toBeCloseTo(1,6);
-  expect(wd.y).toBeLessThan(-0.99);
+  expect(wd.y).toBeCloseTo(-Math.SQRT1_2,6);
  });
  it("collision-aware held movement actually changes the player position and stops on release", () => {
   const game=new TorchlineGame();
