@@ -7,7 +7,7 @@
     "dev": "node scripts/fetch-source-assets.mjs && vite --host 0.0.0.0",
     "build": "node scripts/fetch-source-assets.mjs && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run src/tests",
     "lint": "eslint .",
     "format": "prettier --write .",
     "generate:assets": "bun scripts/create-runtime-assets.mjs",
