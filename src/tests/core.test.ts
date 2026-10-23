@@ -222,7 +222,7 @@ describe("items and combat", () => {
     expect(game.state.turn).toBe(1);
     expect(game.state.player.hp).toBe(hp);
 
-    for (let i = 0; i < 42; i += 1) game.tickFrame(50);
+    for (let i = 0; i < 53; i += 1) game.tickFrame(50); // opening grace + new visible attack windup
 
     expect(game.state.player.hp).toBeLessThan(hp);
   });
@@ -240,6 +240,10 @@ describe("items and combat", () => {
     const turnBeforeDeath = game.state.turn;
 
     game.tickFrame(50);
+    const telegraphs = game.drainEffects();
+    expect(telegraphs.some(e => e.type === "telegraph")).toBe(true);
+    expect(game.state.mode).toBe("playing"); // a marked blow is not instantaneous
+    for (let frame = 0; frame < 14 && game.state.mode === "playing"; frame++) game.tickFrame(50);
     const effects = game.drainEffects();
 
     expect(game.state.mode).toBe("dead");
