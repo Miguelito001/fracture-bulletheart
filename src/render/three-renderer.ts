@@ -3811,6 +3811,9 @@ export class ThreeRenderer {
         this.addSwordSwingFx(event, now);
       } else if (event.type === "dodge") {
         this.addRingFx(event, now, 0.45, 180);
+      } else if (event.type === "telegraph") {
+        // Inspired by Last Stand enemyAI telegraphs: readable danger before damage.
+        this.addRingFx(event, now, event.heavy ? 3.8 : 2.7, event.heavy ? 640 : 470);
       } else if (event.type === "hit") {
         this.addSparkFx(event, now);
         if (event.heavy) this.addRingFx(event, now, 0.6, 240);
@@ -3933,7 +3936,7 @@ export class ThreeRenderer {
     mesh.scale.setScalar(scale);
     this.fxWorld.add(mesh);
     const id = this.fxId(event, "ring");
-    this.runtimeFx.set(id, { id, object: mesh, born: now, duration: Math.min(duration,340), baseY: scale, kind: "ring" });
+    this.runtimeFx.set(id, { id, object: mesh, born: now, duration: Math.min(duration,700), baseY: scale, kind: "ring" });
   }
 
   private addDeathGhostFx(event: EffectEvent, now: number): void {
