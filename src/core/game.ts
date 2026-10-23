@@ -1,4 +1,5 @@
 import { createSkillBuff, createTimedBuff } from "./buffs";
+import { stepVelocity } from "./last-stand-movement";
 import { createPlayer } from "./classes";
 import { blocksMove, generateDungeon, getTile, idx, randomFloorAway, setTile } from "./dungeon";
 import { applyElite } from "./elites";
@@ -211,6 +212,7 @@ export function calculatePlayerStats(state: GameState): StatBlock {
 export class TorchlineGame {
   state: GameState;
   private directInput: Point = { x: 0, y: 0 };
+  private motionVelocity = { x: 0, z: 0 };
 
   constructor(seed = DEFAULT_SEED) {
     resetItemIds();
@@ -239,6 +241,8 @@ export class TorchlineGame {
 
   loadSave(save: SaveGame): void {
     this.directInput = { x: 0, y: 0 };
+    this.motionVelocity = { x: 0, z: 0 };
+    this.pendingEnemyStrikes.clear();
     this.state = stateFromSave(save, this.createState(save.seed));
     this.state.player = this.preparePlayer(this.state.player);
     this.pushMessage("Loaded the saved torchline.", "load-confirm", "load");
@@ -473,6 +477,8 @@ export class TorchlineGame {
     state.mode = "playing";
     state.dungeon = generateDungeon(state.floor, state.seed);
     if (state.floor === 1) this.shapeOpeningShowcaseChamber();
+    this.motionVelocity.x = 0; this.motionVelocity.z = 0;
+    this.pendingEnemyStrikes.clear();
     state.player.x = state.dungeon.spawn.x;
     state.player.y = state.dungeon.spawn.y;
     state.player.moveTarget = null;
@@ -689,6 +695,7 @@ export class TorchlineGame {
 
   private commandMoveTo(x: number, y: number): void {
     const target = this.nearestWalkablePoint({ x, y });
+    this.motionVelocity.x = 0; this.motionVelocity.z = 0;
     const firstWaypoint = this.setEntityMoveTarget(this.state.player, target, 0.28);
     this.state.player.targetActorId = null;
     this.state.player.facing = angleTo(this.state.player, firstWaypoint);
@@ -752,6 +759,7 @@ export class TorchlineGame {
     player.dodgeInvulnMs=PLAYER_DODGE_INVULN_MS;
     player.facing=Math.atan2(dy,dx);
     player.targetActorId=null;player.moveTarget=null;player.movePath=[];
+    this.motionVelocity.x=0;this.motionVelocity.z=0;
     this.setActorAnimation(player,"run",245);
     this.state.turn+=1;
     this.state.debug.lastCommand="dodge";
@@ -869,12 +877,26 @@ export class TorchlineGame {
 
   private updatePlayerRealtime(dt: number): void {
     const player = this.state.player;
-    if (this.directInput.x || this.directInput.y) {
-      const target = { x: player.x + this.directInput.x, y: player.y + this.directInput.y };
-      const moved = this.moveEntityToward(player, target, PLAYER_SPEED, dt, 0.28);
+    // MIT Last Stand: ease toward requested direction, cap foot acceleration,
+    // and brake with a physically sensible faster limit. Crucially, movement
+    // remains frame driven rather than depending on OS key-repeat.
+    const directed = !!(this.directInput.x || this.directInput.y);
+    const wanted = { x: directed ? this.directInput.x * PLAYER_SPEED : 0,
+                     z: directed ? this.directInput.y * PLAYER_SPEED : 0 };
+    stepVelocity(this.motionVelocity, wanted, dt);
+    const speed = Math.hypot(this.motionVelocity.x, this.motionVelocity.z);
+    if (directed || speed > 0.035) {
+      const target = {x: player.x + this.motionVelocity.x * dt,
+                      y: player.y + this.motionVelocity.z * dt};
+      const moved = this.moveEntityToward(player, target, speed, dt, 0.28);
+      if (!moved && speed > 0.1) {
+        // A collided stride cannot keep accumulating invisible momentum.
+        this.motionVelocity.x *= 0.3; this.motionVelocity.z *= 0.3;
+      }
       this.setActorAnimation(player, moved ? "run" : "idle");
       return;
     }
+    this.motionVelocity.x = 0; this.motionVelocity.z = 0;
     const target = player.targetActorId ? this.monstersById(player.targetActorId) : undefined;
     if (target) {
       player.facing = angleTo(player, target);
