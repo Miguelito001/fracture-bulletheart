@@ -3,12 +3,12 @@ import type { EffectEvent, Point } from "../core/types";
 // The combat layer is not allowed to hide the fight. Damage remains authoritative
 // in the game simulation; only redundant cosmetic events are discarded.
 const PER_FRAME: Readonly<Record<string,number>> = {
-  damage: 7, hit: 4, death: 3, swing: 2, dodge: 1,
+  telegraph: 4, damage: 7, hit: 4, death: 3, swing: 2, dodge: 1,
   "loot-beam": 2, pickup: 2, shrine: 1, door: 1
 };
 export const MAX_VISIBLE_FX = 24;
 export const MAX_FX_PER_FRAME = 12;
-const IMPORTANT = ["damage","hit","swing","dodge","death","shrine","door","pickup","loot-beam"];
+const IMPORTANT = ["telegraph","damage","hit","swing","dodge","death","shrine","door","pickup","loot-beam"];
 
 export function limitCombatFx(events: readonly EffectEvent[], player: Point): EffectEvent[] {
   const counts = new Map<string,number>(), seen = new Set<string>();
