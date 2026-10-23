@@ -213,6 +213,7 @@ export class TorchlineGame {
   state: GameState;
   private directInput: Point = { x: 0, y: 0 };
   private motionVelocity = { x: 0, z: 0 };
+  private pendingEnemyStrikes = new Map<string, {remainingMs:number;ranged:boolean;target:Point}>();
 
   constructor(seed = DEFAULT_SEED) {
     resetItemIds();
@@ -933,6 +934,31 @@ export class TorchlineGame {
     const openingAggroGrace = isFloorOneScene(this.state) && this.state.turn === 0;
     this.withActionRng((rng) => {
       for (const monster of [...this.state.monsters]) {
+        // Last Stand-inspired committed attacks: players can SEE the danger
+        // and step or dodge out of the marked location before impact.
+        const queued = this.pendingEnemyStrikes.get(monster.id);
+        if (queued) {
+          queued.remainingMs -= dt * 1000;
+          monster.aiState = "attack";
+          monster.facing = angleTo(monster, queued.target);
+          if ((monster.hitFlashMs ?? 0) > 0) {
+            // Stagger interrupts a windup, just as a successful sword hit should.
+            this.pendingEnemyStrikes.delete(monster.id);
+            monster.attackCooldownMs = Math.max(monster.attackCooldownMs ?? 0, 550);
+          } else if (queued.remainingMs <= 0) {
+            this.pendingEnemyStrikes.delete(monster.id);
+            const range = queued.ranged ? 4.4 : MONSTER_MELEE_RANGE;
+            const player = this.state.player;
+            const lockRadius = queued.ranged ? 0.92 : 0.78;
+            if (distance(player, queued.target) <= lockRadius &&
+                distance(monster, player) <= range + 0.25 &&
+                hasLineOfSight(this.state.dungeon, tilePoint(monster).x, tilePoint(monster).y,
+                  tilePoint(player).x, tilePoint(player).y)) {
+              this.monsterAttack(monster, stats, rng, queued.ranged);
+            }
+          }
+          continue;
+        }
         const dist = distance(monster, this.state.player);
         const monsterTile = tilePoint(monster);
         const playerTile = tilePoint(this.state.player);
@@ -963,9 +989,20 @@ export class TorchlineGame {
           monster.aiState = "attack";
           this.setActorAnimation(monster, "attack");
           if ((monster.attackCooldownMs ?? 0) <= 0) {
-            this.setActorAnimation(monster, "attack", monster.role === "caster" ? 460 : 340);
-            this.monsterAttack(monster, stats, rng, monster.role === "caster");
-            monster.attackCooldownMs = monster.role === "caster" ? 1650 : 980;
+            const ranged = monster.role === "caster";
+            const castMs = ranged ? 670 : 440;
+            this.setActorAnimation(monster, "attack", castMs);
+            this.pendingEnemyStrikes.set(monster.id, {
+              remainingMs:castMs,
+              ranged,
+              target:{x:this.state.player.x,y:this.state.player.y}
+            });
+            // A clearly marked position, not a post-facto red screen flash.
+            this.pushEffect({
+              type:"telegraph",x:this.state.player.x,y:this.state.player.y,
+              color:ranged?"#cd7ef6":"#ff654e",heavy:ranged
+            });
+            monster.attackCooldownMs = ranged ? 1770 : 1130;
           }
           continue;
         }
@@ -1307,6 +1344,7 @@ export class TorchlineGame {
   }
 
   private killMonster(monster: MonsterState, rng: RNG, stats: StatBlock): void {
+    this.pendingEnemyStrikes.delete(monster.id);
     this.state.monsters = this.state.monsters.filter((entry) => entry !== monster);
     this.state.kills += 1;
     this.gainXp(monster.xp);
