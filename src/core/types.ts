@@ -207,6 +207,7 @@ export type EffectType =
   | "hit"
   | "swing"
   | "dodge"
+  | "telegraph"
   | "death"
   | "loot-beam"
   | "shrine"
