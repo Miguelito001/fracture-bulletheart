@@ -260,11 +260,20 @@ export class TorchlineGame {
       : { x: 0, y: 0 };
     const starting = length > 0 && this.directInput.x === 0 && this.directInput.y === 0;
     if (next.x || next.y) {
-      if (starting) this.state.turn += 1;
+      if (starting) {
+        this.state.turn += 1;
+        // Immediate 55% launch speed is intentional: Last Stand foot physics
+        // handles acceleration from here, but WASD must respond on the FIRST frame.
+        this.motionVelocity.x = next.x * PLAYER_SPEED * 0.55;
+        this.motionVelocity.z = next.y * PLAYER_SPEED * 0.55;
+      }
       this.state.player.targetActorId = null;
       this.state.player.moveTarget = null;
       this.state.player.movePath = [];
     } else if (this.directInput.x || this.directInput.y) {
+      // Arcade-precise stop. The full source locomotion model still controls
+      // acceleration and turning, but key release must not coast into hazards.
+      this.motionVelocity.x = 0;this.motionVelocity.z = 0;
       this.setActorAnimation(this.state.player, "idle");
     }
     this.directInput = next;
