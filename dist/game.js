@@ -463,7 +463,7 @@ const upgradeDefs = [
 let rewardChoice = null;
 function choicesOf(pool, count) { return [...pool].sort(() => Math.random() - .5).slice(0, count); }
 function showOverlay(html) { el('#overlay').innerHTML = html; }
-function dismiss() { el('#overlay').innerHTML = ''; mode = hubActive ? 'hub' : 'playing'; mouseDown = false; }
+function dismiss() { mouseDown = false; keys.clear(); if (hubActive) { closeHubModal(); return; } el('#overlay').innerHTML = ''; mode = 'playing'; }
 const card = (title, desc, tag, emoji, idx) => `<button class="card" data-choice="${idx}"><div class="tag">${tag}</div><div class="emoji">${emoji}</div><h3>${title}</h3><p>${desc}</p></button>`;
 function openLevelUp() {
     if (!run || mode === 'gameover')
@@ -553,7 +553,7 @@ function settleExpedition(kind) {
     const details = gained.map(v => `<span class="loot-pill">${escapeHtml(MATERIALS[v.id].name)} ×${v.qty}</span>`).join('') || '<span class="muted">Nenhum material recuperado</span>';
     mode = 'choice';
     showOverlay(`<div class="modal"><header>${kind === 'death' ? '☠ A FRATURA TE DEVOLVEU' : kind === 'victory' ? '✦ OS GUARDIÕES CAÍRAM' : '✦ EXTRAÇÃO CONCLUÍDA'}</header><h2>${kind === 'death' ? 'O espólio tem um preço.' : 'Você voltou para casa.'}</h2><p class="lead">${kind === 'death' ? 'Equipamentos e materiais raros não extraídos foram perdidos. Apenas 25% dos materiais comuns retornaram.' : 'Todo o espólio foi armazenado no Cofre. Uma nova masmorra nascerá quando atravessar o portal.'}</p><div class="stat-row"><div class="stat"><b>${previous.kills}</b><small>CRIATURAS</small></div><div class="stat"><b>${previous.level}</b><small>NÍVEL</small></div><div class="stat"><b>${previous.floor}</b><small>REGIÃO</small></div><div class="stat"><b>${previous.echoes}</b><small>ECOS</small></div></div><h3>ESPÓLIO RECUPERADO</h3><div class="loot-row">${details}</div><div class="actions"><button class="btn" id="home-close">RETORNAR À CÂMARA ÂNCORA</button></div></div>`);
-    el('#home-close').onclick = dismiss;
+    el('#home-close').onclick = () => { keys.clear(); mouseDown = false; closeHubModal(); };
     sound(kind === 'death' ? 'hurt' : 'win');
 }
 function win() { settleExpedition('victory'); }
@@ -2025,10 +2025,7 @@ function render() {
     }
 }
 let previous = 0;
-function frame(t) { const dt = Math.min(.033, (t - previous) / 1000 || .016); previous = t; if (mode === 'playing' && run)
-    tick(dt);
-else if (mode === 'hub' && run)
-    updateHub(dt); render(); requestAnimationFrame(frame); }
+function frame(t) { const dt = Math.min(.033, (t - previous) / 1000 || .016); previous = t; try { if (mode === 'playing' && run) tick(dt); else if (mode === 'hub' && run) updateHub(dt); render(); } catch (error) { console.error('FRACTURE: erro no loop principal', error); try { enterHub(); keys.clear(); mouseDown = false; showNotice('UM ERRO INTERROMPEU A EXPEDIÇÃO. A CÂMARA ÂNCORA FOI RESTAURADA.', 5); } catch (recoveryError) { console.error('FRACTURE: falha ao restaurar a base', recoveryError); } } finally { requestAnimationFrame(frame); } }
 if (!restoreSession())
     enterHub();
 requestAnimationFrame(frame);
