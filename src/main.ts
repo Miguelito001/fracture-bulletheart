@@ -217,7 +217,19 @@ const upgradeDefs:{id:string;name:string;detail:string;rarity:string;apply:()=>v
 let rewardChoice:(()=>void)|null=null;
 function choicesOf<T>(pool:T[],count:number):T[]{return [...pool].sort(()=>Math.random()-.5).slice(0,count);}
 function showOverlay(html:string){el('#overlay').innerHTML=html;}
-function dismiss(){el('#overlay').innerHTML='';mode=hubActive?'hub':'playing';mouseDown=false;}
+function dismiss(){el('#overlay').innerHTML='';mode=hubActive?'hub':'playing';mouseDown=false;chargeStarted=false;fireHeld=false;}
+// Death/extraction is not an ordinary choice dialog. Restore a complete, safe
+// interactive hub, independently of whatever state the previous run left.
+function finishReturnToHub(){
+ if(!hubActive||!run||!walkable(px,py,16))enterHub();
+ el('#overlay').innerHTML='';
+ mode='hub';hubActive=true;mouseDown=false;chargeStarted=false;charging=0;fireHeld=false;
+ keys.clear();
+ el('#hud').classList.add('hidden');el('#hub-status').classList.remove('hidden');
+ el('#pause-button').classList.remove('hidden');
+ updateHubLabel();
+ if(!walkable(px,py,16)){px=HUB.x;py=HUB.y+35;camera.x=px-W/2;camera.y=py-H/2;}
+}
 const card=(title:string,desc:string,tag:string,emoji:string,idx:number)=>`<button class="card" data-choice="${idx}"><div class="tag">${tag}</div><div class="emoji">${emoji}</div><h3>${title}</h3><p>${desc}</p></button>`;
 function openLevelUp(){if(!run||mode==='gameover')return;mode='choice';const list=choicesOf(upgradeDefs,3);showOverlay(`<div class="modal"><header>✦ &nbsp; ASCENSÃO · NÍVEL ${run.level}</header><h2>O poder cobra sua forma.</h2><p class="lead">Escolha o que sua próxima versão será. Essas melhorias permanecem até o fim da expedição.</p><div class="cards">${list.map((x,i)=>card(x.name,x.detail,x.rarity,['⚔','✧','✺'][i],i)).join('')}</div><p class="muted">EXPEDIÇÃO EM PAUSA · Escolha um dos três destinos</p></div>`);
  el('#overlay').querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click',()=>{const u=list[Number((b as HTMLElement).dataset.choice)];u.apply();discover(`up-${u.id}`);sound('level');dismiss();xpQueue--;if(xpQueue>0)setTimeout(openLevelUp,50);}));}
@@ -241,7 +253,7 @@ function settleExpedition(kind:'death'|'extraction'|'victory'){clearSession();
  if(surviving){save.extractions=(save.extractions||0)+1;save.portalScrolls=(save.portalScrolls||0)+run.scrolls;}
  persistEnd(kind==='victory');(save as Save & {shopPurchased?:number}).shopPurchased=0;const previous=run;run.cargo=[];run.scrolls=0;writeSave();
  enterHub();const details=gained.map(v=>`<span class="loot-pill">${escapeHtml(MATERIALS[v.id].name)} ×${v.qty}</span>`).join('')||'<span class="muted">Nenhum material recuperado</span>';
- mode='choice';showOverlay(`<div class="modal"><header>${kind==='death'?'☠ A FRATURA TE DEVOLVEU':kind==='victory'?'✦ OS GUARDIÕES CAÍRAM':'✦ EXTRAÇÃO CONCLUÍDA'}</header><h2>${kind==='death'?'O espólio tem um preço.':'Você voltou para casa.'}</h2><p class="lead">${kind==='death'?'Equipamentos e materiais raros não extraídos foram perdidos. Apenas 25% dos materiais comuns retornaram.':'Todo o espólio foi armazenado no Cofre. Uma nova masmorra nascerá quando atravessar o portal.'}</p><div class="stat-row"><div class="stat"><b>${previous.kills}</b><small>CRIATURAS</small></div><div class="stat"><b>${previous.level}</b><small>NÍVEL</small></div><div class="stat"><b>${previous.floor}</b><small>REGIÃO</small></div><div class="stat"><b>${previous.echoes}</b><small>ECOS</small></div></div><h3>ESPÓLIO RECUPERADO</h3><div class="loot-row">${details}</div><div class="actions"><button class="btn" id="home-close">RETORNAR À CÂMARA ÂNCORA</button></div></div>`);el('#home-close').onclick=dismiss;sound(kind==='death'?'hurt':'win');
+ mode='choice';showOverlay(`<div class="modal"><header>${kind==='death'?'☠ A FRATURA TE DEVOLVEU':kind==='victory'?'✦ OS GUARDIÕES CAÍRAM':'✦ EXTRAÇÃO CONCLUÍDA'}</header><h2>${kind==='death'?'O espólio tem um preço.':'Você voltou para casa.'}</h2><p class="lead">${kind==='death'?'Equipamentos e materiais raros não extraídos foram perdidos. Apenas 25% dos materiais comuns retornaram.':'Todo o espólio foi armazenado no Cofre. Uma nova masmorra nascerá quando atravessar o portal.'}</p><div class="stat-row"><div class="stat"><b>${previous.kills}</b><small>CRIATURAS</small></div><div class="stat"><b>${previous.level}</b><small>NÍVEL</small></div><div class="stat"><b>${previous.floor}</b><small>REGIÃO</small></div><div class="stat"><b>${previous.echoes}</b><small>ECOS</small></div></div><h3>ESPÓLIO RECUPERADO</h3><div class="loot-row">${details}</div><div class="actions"><button class="btn" id="home-close">RETORNAR À CÂMARA ÂNCORA</button></div></div>`);el('#home-close').onclick=finishReturnToHub;sound(kind==='death'?'hurt':'win');
 }
 function win(){settleExpedition('victory');}
 function gameOver(){settleExpedition('death');}
@@ -525,7 +537,15 @@ function restoreSession():boolean{try{const data=JSON.parse(localStorage.getItem
 window.addEventListener('pagehide',()=>{if(!hubActive&&run?.hp>0)persistSession();});
 
 // The Anchor Chamber is a permanent, walkable place. It is NEVER procedurally regenerated.
-function enterHub(){clearSession();hubActive=true;returnCast=0;castStart=null;run=createRun(save.preferredClass||'wanderer');world=new Set();blocked=new Set();rooms=[];mobs=[];shots=[];loot=[];particles=[];current=null;for(let x=-12;x<=12;x++)for(let y=-8;y<=8;y++)world.add(tileKey(HUB.x/T+x,HUB.y/T+y));px=HUB.x;py=HUB.y+35;camera.x=px-W/2;camera.y=py-H/2;mode='hub';el('#overlay').innerHTML='';el('#hud').classList.add('hidden');el('#hub-status').classList.remove('hidden');updateHubLabel();el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='CÂMARA ÂNCORA · WASD MOVER · E INTERAGIR · I MOCHILA · ESC PAUSAR';showLocation('CÂMARA ÂNCORA');}
+function enterHub(){
+ clearSession();
+ // Never carry the dying character's controls, delayed attacks, spell effects,
+ // enemy references or active combat back into the permanent safe room.
+ keys.clear();mouseDown=false;charging=0;chargeStarted=false;fireHeld=false;
+ attackCD=0;dashCD=0;dashTime=0;specialCD=0;hitInvuln=0;
+ returnCast=0;castStart=null;floorMemory.clear();bossCurrent=null;
+ xpQueue=0;roomAlert=0;screenShake=0;screenFlash=0;nextMob=1;
+ hubActive=true;run=createRun(save.preferredClass||'wanderer');world=new Set();blocked=new Set();rooms=[];mobs=[];shots=[];loot=[];particles=[];current=null;for(let x=-12;x<=12;x++)for(let y=-8;y<=8;y++)world.add(tileKey(Math.floor(HUB.x/T)+x,Math.floor(HUB.y/T)+y));px=HUB.x;py=HUB.y+35;if(!walkable(px,py,16))throw Error('HUB_SPAWN_MUST_BE_WALKABLE');camera.x=px-W/2;camera.y=py-H/2;mode='hub';el('#overlay').innerHTML='';el('#hud').classList.add('hidden');el('#hub-status').classList.remove('hidden');updateHubLabel();el('#pause-button').classList.remove('hidden');el('#footer-hint').textContent='CÂMARA ÂNCORA · WASD MOVER · E INTERAGIR · I MOCHILA · ESC PAUSAR';showLocation('CÂMARA ÂNCORA');}
 function updateHub(dt:number){globalTime+=dt;noticeTimer-=dt;locationTimer-=dt;let dx=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),dy=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));const len=Math.hypot(dx,dy)||1;moveWithCollision({get x(){return px;},set x(v:number){px=v;},get y(){return py;},set y(v:number){py=v;}},dx/len*240*dt,dy/len*240*dt,15);camera.x+=(px-W/2-camera.x)*Math.min(1,dt*8);camera.y+=(py-H/2-camera.y)*Math.min(1,dt*8);if(noticeTimer<=0)el('#notice').style.opacity='0';if(locationTimer<=0)el('#location-toast').style.opacity='0';}
 function updateHubLabel(){el('#hub-echoes').textContent=String(save.echoes);el('#hub-scrolls').textContent=String(save.portalScrolls||0);el('#hub-extractions').textContent=String(save.extractions||0);}
 function drawHubStations(){
