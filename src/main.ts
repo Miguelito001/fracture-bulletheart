@@ -346,7 +346,13 @@ function keyHandler(e:KeyboardEvent){const k=e.key.toLowerCase();if(['arrowup','
 window.addEventListener('keydown',keyHandler);window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();mouseDown=false;});
 canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();aim.x=(e.clientX-r.left)/r.width*W;aim.y=(e.clientY-r.top)/r.height*H;});
 canvas.addEventListener('mousedown',e=>{if(e.button!==0)return;mouseDown=true;attackInputStart();});window.addEventListener('mouseup',e=>{if(e.button!==0)return;mouseDown=false;attackInputEnd();});canvas.addEventListener('contextmenu',e=>e.preventDefault());
-el('#pause-button').onclick=pause;
+// Weapon slots can be clicked/tapped as well as selected with 1/2.
+ for(const [index,id] of [[0,'#weapon1'],[1,'#weapon2']] as const){
+   const node=el(id);
+   node.addEventListener('click',()=>swap(index));
+   node.addEventListener('keydown',(event)=>{const e=event as KeyboardEvent;if(e.key==='Enter'||e.key===' '){e.preventDefault();swap(index);}});
+ }
+ el('#pause-button').onclick=pause;
 function enemyFire(m:Mob){const a=angle(m,{x:px,y:py});const kind=m.kind;
  if(kind==='crawler'||kind==='knight'||kind==='elite'){if(distance(m,{x:px,y:py})<m.radius+35)damagePlayer(m.attack+run.floor*2);if(kind==='elite')for(let i=-1;i<=1;i++)makeShot(m.x,m.y,a+i*.28,310,15+run.floor*2,true,'enemy',2,0,8);}
  else if(kind==='ranger'){makeShot(m.x,m.y,a,370+run.floor*12,13+run.floor*2,true,'enemy',2,0,8);}
