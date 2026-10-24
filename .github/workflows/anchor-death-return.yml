@@ -1,0 +1,49 @@
+name: FRACTURE Anchor — death and return QA
+on:
+  push:
+    branches: [feature/fix-anchor-death-return]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fracture-anchor-death-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript
+        run: npm run check
+      - name: Build
+        run: npm run build
+      - name: Existing gameplay regressions
+        run: npm test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Chromium runtime
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Death, return, movement, repeat, extraction and reload
+        run: python tools/qa_death_return.py
+      - name: Existing player and combat QA
+        run: python tools/qa_stable.py
+      - name: Gameplay evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fracture-anchor-death-return-screenshots
+          path: |
+            qa-anchor-death-return.png
+            qa-stable-gameplay.png
+          if-no-files-found: ignore
+          retention-days: 14
