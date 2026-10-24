@@ -64,6 +64,29 @@ try:
    assert resumed["walkable"] and not resumed["modal"],resumed
    print("DEATH_RETURN_QA",json.dumps(dict(attempt=attempt+1,starting=running,
         defeat=defeat,returnState=returned,moved=after,resumed=resumed),ensure_ascii=False))
+  # Regression: pending level-up UI and delayed class ability callbacks from
+  # an expedition must NEVER reopen a modal or alter the NEW run after death.
+  page.evaluate("""() => {
+   px=HUB.x;py=HUB.y-205;interactHub();
+   special(); // Wanderer has a delayed speed-buff cleanup.
+   xpQueue=1;
+   setTimeout(openLevelUp,35);
+   hitInvuln=0;dashTime=0;damagePlayer(999999);
+  }""")
+  page.wait_for_selector("#home-close",state="visible")
+  page.locator("#home-close").click()
+  page.wait_for_timeout(1100)
+  delayed=snapshot(page)
+  assert delayed["mode"]=="hub" and not delayed["modal"],delayed
+  expected_speed=page.evaluate("createRun('wanderer').speed")
+  actual_speed=page.evaluate("run.speed")
+  assert actual_speed==expected_speed,{"expected":expected_speed,"actual":actual_speed}
+  page.keyboard.down("d")
+  before=page.evaluate("px")
+  page.wait_for_timeout(270)
+  page.keyboard.up("d")
+  assert page.evaluate("px")>before+18,"delayed callback froze the hub controls"
+  print("DELAYED_DEATH_CALLBACK_QA",json.dumps({"mode":delayed["mode"],"speed":actual_speed}))
   # Extraction must use the same reliable return path.
   page.evaluate("""() => {px=HUB.x;py=HUB.y-205;interactHub();run.scrolls=1;settleExpedition('extraction');}""")
   page.wait_for_selector("#home-close",state="visible")
